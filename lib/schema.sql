@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS products (
   name VARCHAR(255) NOT NULL,
   description TEXT,
   cost_usd DECIMAL(10,2) NOT NULL,
+  profit_margin DECIMAL(5,2) DEFAULT 45.00,
   category VARCHAR(100),
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

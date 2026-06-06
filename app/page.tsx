@@ -85,7 +85,10 @@ export default function Home() {
                         <p className="font-medium text-gray-800">{p.name}</p>
                         {p.category && <p className="text-xs text-gray-500">{p.category}</p>}
                       </div>
-                      <p className="text-sm font-semibold text-blue-600">${parseFloat(p.costUsd).toFixed(2)}</p>
+                      <div className="text-right">
+                        <p className="text-sm font-semibold text-blue-600">${parseFloat(p.costUsd).toFixed(2)}</p>
+                        <p className="text-xs text-green-600">+{p.profit_margin || 45}% util.</p>
+                      </div>
                     </div>
                   ))}
                 </div>

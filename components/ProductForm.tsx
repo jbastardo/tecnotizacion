@@ -11,6 +11,7 @@ export default function ProductForm({ onProductAdded }: ProductFormProps) {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [costUsd, setCostUsd] = useState('');
+  const [profitMargin, setProfitMargin] = useState('45');
   const [category, setCategory] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -26,6 +27,7 @@ export default function ProductForm({ onProductAdded }: ProductFormProps) {
           name,
           description,
           costUsd: parseFloat(costUsd),
+          profitMargin: parseFloat(profitMargin) || 45,
           category,
         }),
       });
@@ -34,6 +36,7 @@ export default function ProductForm({ onProductAdded }: ProductFormProps) {
         setName('');
         setDescription('');
         setCostUsd('');
+        setProfitMargin('45');
         setCategory('');
         onProductAdded();
       } else {
@@ -100,21 +103,50 @@ export default function ProductForm({ onProductAdded }: ProductFormProps) {
           />
         </div>
 
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">
-            Precio de Costo (USD) *
-          </label>
-          <input
-            type="number"
-            value={costUsd}
-            onChange={(e) => setCostUsd(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-            placeholder="0.00"
-            step="0.01"
-            min="0"
-            required
-          />
+        <div className="grid grid-cols-2 gap-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Precio de Costo (USD) *
+            </label>
+            <input
+              type="number"
+              value={costUsd}
+              onChange={(e) => setCostUsd(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              placeholder="0.00"
+              step="0.01"
+              min="0"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">
+              Margen de Utilidad (%) *
+            </label>
+            <input
+              type="number"
+              value={profitMargin}
+              onChange={(e) => setProfitMargin(e.target.value)}
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              placeholder="45"
+              step="1"
+              min="0"
+              max="1000"
+              required
+            />
+          </div>
         </div>
+
+        {costUsd && profitMargin && (
+          <div className="bg-green-50 p-3 rounded-lg text-sm">
+            <p className="font-medium text-green-800">Vista previa:</p>
+            <p className="text-green-700">
+              Precio de venta: $
+              {(parseFloat(costUsd) * (1 + parseFloat(profitMargin) / 100)).toFixed(2)}
+            </p>
+          </div>
+        )}
 
         <button
           type="submit"
