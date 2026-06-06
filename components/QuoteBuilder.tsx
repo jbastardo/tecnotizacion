@@ -136,8 +136,10 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
   };
 
   const handleSendWhatsApp = async () => {
-    const ok = await saveQuote('sent');
+    if (!clientName) { alert('Ingresa el nombre del cliente'); return; }
+    if (items.length === 0) { alert('Agrega al menos un producto'); return; }
 
+    // Build message FIRST (sync) so window.open is not blocked on mobile
     let message = `*PRESUPUESTO - TECNOTIZACIÓN*\n`;
     message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
     message += `Cliente: ${clientName}\n`;
@@ -168,8 +170,13 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
     message += `\nPresupuesto válido por 7 días.\n¡Gracias por su preferencia!`;
 
     const phone = clientPhone.replace(/[^0-9]/g, '');
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+    const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 
+    // Open WhatsApp SYNCHRONOUSLY before any await (mobile browsers block async window.open)
+    window.open(waUrl, '_blank');
+
+    // Save quote async after opening WhatsApp
+    const ok = await saveQuote('sent');
     if (ok) onSaved();
   };
 
