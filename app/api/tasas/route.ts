@@ -4,11 +4,17 @@ import { fetchExchangeRates } from '@/lib/exchange-rates';
 export async function GET() {
   try {
     const rates = await fetchExchangeRates();
-    return NextResponse.json(rates);
+    if (rates.bcv > 0 && rates.promedio > 0) {
+      return NextResponse.json(rates);
+    }
   } catch (error) {
-    return NextResponse.json(
-      { error: 'Failed to fetch exchange rates' },
-      { status: 500 }
-    );
+    console.error('Error fetching rates from API:', error);
   }
+
+  return NextResponse.json({
+    bcv: 0,
+    promedio: 0,
+    lastUpdated: new Date().toISOString(),
+    needsManual: true,
+  });
 }

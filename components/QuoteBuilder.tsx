@@ -1,15 +1,17 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Trash2, Send } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Send, Edit2 } from 'lucide-react';
 import { calculatePricing, formatBs, formatUsd } from '@/lib/pricing';
 
 interface QuoteBuilderProps {
   products: any[];
+  clients: any[];
   onQuoteCreated: (quote: any) => void;
 }
 
-export default function QuoteBuilder({ products, onQuoteCreated }: QuoteBuilderProps) {
+export default function QuoteBuilder({ products, clients, onQuoteCreated }: QuoteBuilderProps) {
+  const [selectedClientId, setSelectedClientId] = useState('');
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'bs' | 'cash' | 'binance' | 'divisas'>('bs');
@@ -17,6 +19,9 @@ export default function QuoteBuilder({ products, onQuoteCreated }: QuoteBuilderP
   const [selectedProduct, setSelectedProduct] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [rates, setRates] = useState({ bcv: 0, promedio: 0 });
+  const [manualBcv, setManualBcv] = useState('');
+  const [manualPromedio, setManualPromedio] = useState('');
+  const [needsManual, setNeedsManual] = useState(false);
   const [loadingRates, setLoadingRates] = useState(true);
 
   useEffect(() => {
@@ -25,17 +30,39 @@ export default function QuoteBuilder({ products, onQuoteCreated }: QuoteBuilderP
       .then((data) => {
         if (data.bcv > 0 && data.promedio > 0) {
           setRates(data);
+          setNeedsManual(false);
+        } else {
+          setNeedsManual(true);
         }
         setLoadingRates(false);
       })
-      .catch(() => setLoadingRates(false));
+      .catch(() => {
+        setNeedsManual(true);
+        setLoadingRates(false);
+      });
   }, []);
 
+  useEffect(() => {
+    if (selectedClientId) {
+      const client = clients.find((c) => c.id === selectedClientId);
+      if (client) {
+        setClientName(client.name);
+        setClientPhone(client.phone || '');
+      }
+    }
+  }, [selectedClientId, clients]);
+
+  const activeBcv = manualBcv ? parseFloat(manualBcv) : rates.bcv;
+  const activePromedio = manualPromedio ? parseFloat(manualPromedio) : rates.promedio;
   const ivaRate = 16;
 
   const addItem = () => {
     const product = products.find((p) => p.id === selectedProduct);
     if (!product) return;
+    if (activeBcv === 0 && paymentMethod === 'bs') {
+      alert('Ingresa la tasa BCV para calcular precios en Bs');
+      return;
+    }
 
     const qty = parseInt(quantity) || 1;
     const productMargin = product.profitMargin || 45;
@@ -44,8 +71,8 @@ export default function QuoteBuilder({ products, onQuoteCreated }: QuoteBuilderP
       quantity: qty,
       paymentMethod,
       profitMargin: productMargin,
-      bcvRate: rates.bcv,
-      promedioRate: rates.promedio,
+      bcvRate: activeBcv,
+      promedioRate: activePromedio,
       ivaRate,
     });
 
@@ -83,6 +110,7 @@ export default function QuoteBuilder({ products, onQuoteCreated }: QuoteBuilderP
       paymentMethod,
       items,
       totals,
+      rates: { bcv: activeBcv, promedio: activePromedio },
       createdAt: new Date().toLocaleDateString('es-VE'),
     };
 
@@ -94,8 +122,11 @@ export default function QuoteBuilder({ products, onQuoteCreated }: QuoteBuilderP
     message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
     message += `Cliente: ${clientName}\n`;
     message += `Fecha: ${new Date().toLocaleDateString('es-VE')}\n`;
-    message += `Forma de Pago: ${paymentMethod.toUpperCase()}\n\n`;
-    message += `*PRODUCTOS:*\n\n`;
+    message += `Forma de Pago: ${paymentMethod.toUpperCase()}\n`;
+    if (paymentMethod === 'bs') {
+      message += `Tasa BCV: Bs ${activeBcv.toFixed(2)}\n`;
+    }
+    message += `\n*PRODUCTOS:*\n\n`;
 
     items.forEach((item, index) => {
       message += `${index + 1}. ${item.product.name}\n`;
@@ -138,6 +169,24 @@ export default function QuoteBuilder({ products, onQuoteCreated }: QuoteBuilderP
         </div>
 
         <div className="space-y-4">
+          {clients.length > 0 && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Cliente Guardado
+              </label>
+              <select
+                value={selectedClientId}
+                onChange={(e) => setSelectedClientId(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              >
+                <option value="">-- Nuevo cliente --</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name} - {c.phone || 'Sin tel.'}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">
               Nombre del Cliente *
@@ -183,6 +232,34 @@ export default function QuoteBuilder({ products, onQuoteCreated }: QuoteBuilderP
 
           {loadingRates ? (
             <p className="text-sm text-gray-500">Cargando tasas...</p>
+          ) : needsManual || activeBcv === 0 ? (
+            <div className="bg-amber-50 p-3 rounded-lg text-sm space-y-2">
+              <p className="font-medium text-amber-800">Ingresa tasas manualmente:</p>
+              <div className="grid grid-cols-2 gap-2">
+                <div>
+                  <label className="text-xs text-amber-700">BCV</label>
+                  <input
+                    type="number"
+                    value={manualBcv}
+                    onChange={(e) => setManualBcv(e.target.value)}
+                    className="w-full px-3 py-2 border border-amber-300 rounded text-sm"
+                    placeholder="Ej: 85.50"
+                    step="0.01"
+                  />
+                </div>
+                <div>
+                  <label className="text-xs text-amber-700">Promedio</label>
+                  <input
+                    type="number"
+                    value={manualPromedio}
+                    onChange={(e) => setManualPromedio(e.target.value)}
+                    className="w-full px-3 py-2 border border-amber-300 rounded text-sm"
+                    placeholder="Ej: 89.20"
+                    step="0.01"
+                  />
+                </div>
+              </div>
+            </div>
           ) : (
             <div className="bg-blue-50 p-3 rounded-lg text-sm">
               <p className="font-medium">Tasas actuales:</p>
@@ -241,10 +318,16 @@ export default function QuoteBuilder({ products, onQuoteCreated }: QuoteBuilderP
                   <div className="flex-1">
                     <h4 className="font-semibold text-gray-800">{item.product.name}</h4>
                     <p className="text-sm text-gray-600">Cantidad: {item.quantity}</p>
+                    <p className="text-xs text-gray-500">Utilidad: {item.product.profitMargin || 45}%</p>
                     {paymentMethod === 'bs' ? (
-                      <p className="text-sm text-gray-600">
-                        P/U: Bs {formatBs(item.pricing.salePriceBs)}
-                      </p>
+                      <div className="mt-1">
+                        <p className="text-sm text-gray-600">
+                          P/U: Bs {formatBs(item.pricing.salePriceBs)}
+                        </p>
+                        <p className="text-xs text-gray-500">
+                          (${formatUsd(item.pricing.salePriceUsd)} × Bs {activeBcv.toFixed(2)} + IVA)
+                        </p>
+                      </div>
                     ) : (
                       <p className="text-sm text-gray-600">
                         P/U: ${formatUsd(item.pricing.salePriceUsd)}

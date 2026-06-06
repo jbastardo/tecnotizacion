@@ -1,16 +1,19 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, FileText, Settings, Package } from 'lucide-react';
+import { Plus, FileText, Settings, Package, Users } from 'lucide-react';
 import ProductForm from '@/components/ProductForm';
+import ProductList from '@/components/ProductList';
+import ClientManager from '@/components/ClientManager';
 import QuoteBuilder from '@/components/QuoteBuilder';
 import QuoteView from '@/components/QuoteView';
 
-type View = 'home' | 'products' | 'builder' | 'quote';
+type View = 'home' | 'products' | 'productList' | 'clients' | 'builder' | 'quote';
 
 export default function Home() {
   const [currentView, setCurrentView] = useState<View>('home');
   const [products, setProducts] = useState<any[]>([]);
+  const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentQuote, setCurrentQuote] = useState<any>(null);
 
@@ -24,9 +27,17 @@ export default function Home() {
       .catch(() => setLoading(false));
   }, []);
 
+  const fetchClients = useCallback(() => {
+    fetch('/api/clientes')
+      .then((res) => res.json())
+      .then((data) => setClients(data))
+      .catch(() => {});
+  }, []);
+
   useEffect(() => {
     fetchProducts();
-  }, [fetchProducts]);
+    fetchClients();
+  }, [fetchProducts, fetchClients]);
 
   const handleProductAdded = () => {
     fetchProducts();
@@ -55,8 +66,8 @@ export default function Home() {
                 onClick={() => setCurrentView('products')}
                 className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow flex flex-col items-center gap-3"
               >
-                <Package className="w-10 h-10 text-blue-600" />
-                <span className="font-semibold text-gray-800">Productos</span>
+                <Plus className="w-10 h-10 text-blue-600" />
+                <span className="font-semibold text-gray-800">Agregar Producto</span>
               </button>
               <button
                 onClick={() => setCurrentView('builder')}
@@ -65,29 +76,42 @@ export default function Home() {
                 <FileText className="w-10 h-10 text-green-600" />
                 <span className="font-semibold text-gray-800">Presupuesto</span>
               </button>
+              <button
+                onClick={() => setCurrentView('productList')}
+                className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow flex flex-col items-center gap-3"
+              >
+                <Package className="w-10 h-10 text-purple-600" />
+                <span className="font-semibold text-gray-800">Mis Productos</span>
+              </button>
+              <button
+                onClick={() => setCurrentView('clients')}
+                className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow flex flex-col items-center gap-3"
+              >
+                <Users className="w-10 h-10 text-orange-600" />
+                <span className="font-semibold text-gray-800">Clientes</span>
+              </button>
             </div>
 
             <div className="bg-white p-6 rounded-xl shadow-md">
               <h2 className="text-lg font-semibold text-gray-800 mb-4">Resumen</h2>
               <div className="space-y-2 text-sm text-gray-600">
                 <p>Productos registrados: {loading ? 'Cargando...' : products.length}</p>
-                <p>Presupuestos creados: 0</p>
               </div>
             </div>
 
             {products.length > 0 && (
               <div className="bg-white p-6 rounded-xl shadow-md">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">Productos</h2>
+                <h2 className="text-lg font-semibold text-gray-800 mb-4">Productos Recientes</h2>
                 <div className="space-y-2">
-                  {products.map((p) => (
+                  {products.slice(0, 5).map((p) => (
                     <div key={p.id} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
                       <div>
                         <p className="font-medium text-gray-800">{p.name}</p>
                         {p.category && <p className="text-xs text-gray-500">{p.category}</p>}
                       </div>
                       <div className="text-right">
-                        <p className="text-sm font-semibold text-blue-600">${parseFloat(p.costUsd).toFixed(2)}</p>
-                        <p className="text-xs text-green-600">+{p.profitMargin || 45}% util.</p>
+                        <p className="text-sm font-semibold text-blue-600">${p.costUsd.toFixed(2)}</p>
+                        <p className="text-xs text-green-600">+{p.profitMargin}% util.</p>
                       </div>
                     </div>
                   ))}
@@ -101,9 +125,18 @@ export default function Home() {
           <ProductForm onProductAdded={handleProductAdded} />
         )}
 
+        {currentView === 'productList' && (
+          <ProductList onBack={() => setCurrentView('home')} />
+        )}
+
+        {currentView === 'clients' && (
+          <ClientManager onBack={() => setCurrentView('home')} />
+        )}
+
         {currentView === 'builder' && (
           <QuoteBuilder
             products={products}
+            clients={clients}
             onQuoteCreated={handleQuoteCreated}
           />
         )}
@@ -127,9 +160,9 @@ export default function Home() {
             <span className="text-xs">Inicio</span>
           </button>
           <button
-            onClick={() => setCurrentView('products')}
+            onClick={() => setCurrentView('productList')}
             className={`flex flex-col items-center gap-1 ${
-              currentView === 'products' ? 'text-blue-600' : 'text-gray-500'
+              currentView === 'productList' ? 'text-blue-600' : 'text-gray-500'
             }`}
           >
             <Package className="w-6 h-6" />
@@ -145,10 +178,13 @@ export default function Home() {
             <span className="text-xs">Nuevo</span>
           </button>
           <button
-            className="flex flex-col items-center gap-1 text-gray-500"
+            onClick={() => setCurrentView('clients')}
+            className={`flex flex-col items-center gap-1 ${
+              currentView === 'clients' ? 'text-blue-600' : 'text-gray-500'
+            }`}
           >
-            <Settings className="w-6 h-6" />
-            <span className="text-xs">Ajustes</span>
+            <Users className="w-6 h-6" />
+            <span className="text-xs">Clientes</span>
           </button>
         </div>
       </nav>
