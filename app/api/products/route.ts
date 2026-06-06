@@ -1,14 +1,12 @@
 import { NextResponse } from 'next/server';
-import { sql } from '@/lib/db';
+import { query } from '@/lib/db';
 
 export async function GET() {
   try {
-    const products = await sql`
-      SELECT id, name, description, cost_usd, category, created_at
-      FROM products
-      ORDER BY created_at DESC
-    `;
-    return NextResponse.json(products);
+    const result = await query(
+      'SELECT id, name, description, cost_usd, category, created_at FROM products ORDER BY created_at DESC'
+    );
+    return NextResponse.json(result.rows);
   } catch (error) {
     console.error('Error fetching products:', error);
     return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
@@ -20,13 +18,14 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { name, description, costUsd, category } = body;
 
-    const result = await sql`
-      INSERT INTO products (name, description, cost_usd, category)
-      VALUES (${name}, ${description || null}, ${costUsd}, ${category || null})
-      RETURNING id, name, description, cost_usd, category, created_at
-    `;
+    const result = await query(
+      `INSERT INTO products (name, description, cost_usd, category)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, name, description, cost_usd, category, created_at`,
+      [name, description || null, costUsd, category || null]
+    );
 
-    return NextResponse.json(result[0], { status: 201 });
+    return NextResponse.json(result.rows[0], { status: 201 });
   } catch (error) {
     console.error('Error creating product:', error);
     return NextResponse.json({ error: 'Failed to create product' }, { status: 500 });
