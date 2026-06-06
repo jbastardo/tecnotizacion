@@ -81,7 +81,11 @@ export async function POST(request: Request) {
     }
 
     return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
-  } catch (error) {
+  } catch (error: any) {
+    // Tables may not exist yet - return graceful error
+    if (error?.code === '42P01') {
+      return NextResponse.json({ error: 'Sistema de autenticación no configurado aún' }, { status: 503 });
+    }
     console.error('Auth error:', error);
     return NextResponse.json({ error: 'Error de servidor' }, { status: 500 });
   }
