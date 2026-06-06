@@ -8,9 +8,10 @@ interface QuoteBuilderProps {
   products: any[];
   clients: any[];
   onQuoteCreated: (quote: any) => void;
+  onSaved: () => void;
 }
 
-export default function QuoteBuilder({ products, clients, onQuoteCreated }: QuoteBuilderProps) {
+export default function QuoteBuilder({ products, clients, onQuoteCreated, onSaved }: QuoteBuilderProps) {
   const [selectedClientId, setSelectedClientId] = useState('');
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
@@ -97,6 +98,30 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated }: Quot
     { usd: 0, bs: 0 }
   );
 
+  const saveQuoteToDb = async (status = 'draft') => {
+    if (!clientName) return null;
+    try {
+      const res = await fetch('/api/quotes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientName,
+          clientPhone,
+          paymentMethod,
+          totalUsd: totals.usd,
+          totalBs: totals.bs,
+        }),
+      });
+      if (res.ok) {
+        const saved = await res.json();
+        return saved;
+      }
+    } catch (e) {
+      console.error('Error saving quote:', e);
+    }
+    return null;
+  };
+
   const createQuote = async () => {
     if (!selectedClientId && clientName && clientPhone) {
       try {
@@ -109,45 +134,12 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated }: Quot
         console.error('Could not save client:', e);
       }
     }
-
-    const quoteData = {
-      clientName,
-      clientPhone,
-      paymentMethod,
-      totalUsd: totals.usd,
-      totalBs: totals.bs,
-      rates: { bcv: activeBcv, promedio: activePromedio },
-      items: items.map((item) => ({
-        id: item.id,
-        product: { id: item.product?.id, name: item.product?.name, costUsd: item.product?.costUsd },
-        quantity: item.quantity,
-        pricing: item.pricing,
-      })),
-    };
-
-    try {
-      const res = await fetch('/api/quotes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(quoteData),
-      });
-
-      if (res.ok) {
-        const savedQuote = await res.json();
-        onQuoteCreated(savedQuote);
-      } else {
-        console.error('Failed to save quote');
-        const localQuote = { ...quoteData, id: Date.now().toString(), status: 'draft', createdAt: new Date().toLocaleDateString('es-VE'), totals: { usd: totals.usd, bs: totals.bs } };
-        onQuoteCreated(localQuote);
-      }
-    } catch (error) {
-      console.error('Error saving quote:', error);
-      const localQuote = { ...quoteData, id: Date.now().toString(), status: 'draft', createdAt: new Date().toLocaleDateString('es-VE'), totals: { usd: totals.usd, bs: totals.bs } };
-      onQuoteCreated(localQuote);
-    }
+    await saveQuoteToDb('draft');
+    onSaved();
   };
 
-  const sendWhatsApp = () => {
+  const sendWhatsAppAndSave = async () => {
+    await saveQuoteToDb('sent');
     let message = `*PRESUPUESTO - TECNOTIZACIÓN*\n`;
     message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
     message += `Cliente: ${clientName}\n`;
@@ -184,6 +176,7 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated }: Quot
     const phone = clientPhone.replace(/[^0-9]/g, '');
     const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
     window.open(url, '_blank');
+    onSaved();
   };
 
   return (
@@ -380,7 +373,7 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated }: Quot
       {items.length > 0 && clientName && (
         <div className="space-y-3">
           <button
-            onClick={sendWhatsApp}
+            onClick={sendWhatsAppAndSave}
             className="w-full bg-green-500 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
           >
             <Send className="w-6 h-6" />

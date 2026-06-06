@@ -154,6 +154,7 @@ export default function Home() {
             products={products}
             clients={clients}
             onQuoteCreated={handleQuoteCreated}
+            onSaved={() => setCurrentView('history')}
           />
         )}
 
