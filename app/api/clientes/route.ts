@@ -28,10 +28,18 @@ export async function POST(request: Request) {
     const body = await request.json();
     const { name, phone, email } = body;
 
+    const existing = await query('SELECT id FROM clients WHERE phone = $1 AND phone IS NOT NULL', [phone || '']);
+    if (existing.rows.length > 0 && phone) {
+      const result = await query(
+        'UPDATE clients SET name = $1, email = $2 WHERE phone = $3 RETURNING id, name, phone, email, created_at',
+        [name, email || null, phone]
+      );
+      return NextResponse.json(mapClient(result.rows[0]));
+    }
+
     const result = await query(
       `INSERT INTO clients (name, phone, email)
        VALUES ($1, $2, $3)
-       ON CONFLICT (phone) DO UPDATE SET name = EXCLUDED.name, email = EXCLUDED.email
        RETURNING id, name, phone, email, created_at`,
       [name, phone || null, email || null]
     );

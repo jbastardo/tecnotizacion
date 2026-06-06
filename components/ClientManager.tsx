@@ -43,9 +43,13 @@ export default function ClientManager({ onBack }: ClientManagerProps) {
         setNewClient({ name: '', phone: '', email: '' });
         setShowAdd(false);
         fetchClients();
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Error al guardar');
       }
     } catch (error) {
       console.error('Error:', error);
+      alert('Error al guardar');
     }
   };
 
@@ -70,9 +74,13 @@ export default function ClientManager({ onBack }: ClientManagerProps) {
       if (res.ok) {
         setEditingId(null);
         fetchClients();
+      } else {
+        const err = await res.json();
+        alert(err.error || 'Error al actualizar');
       }
     } catch (error) {
       console.error('Error:', error);
+      alert('Error al actualizar');
     }
   };
 

@@ -21,18 +21,21 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
     message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
     message += `Cliente: ${quote.clientName}\n`;
     message += `Fecha: ${quote.createdAt}\n`;
-    message += `Forma de Pago: ${paymentMethodLabels[quote.paymentMethod]}\n\n`;
-    message += `*PRODUCTOS:*\n\n`;
+    message += `Forma de Pago: ${paymentMethodLabels[quote.paymentMethod]}\n`;
+    if (quote.paymentMethod === 'bs' && quote.rates) {
+      message += `Tasa BCV: Bs ${quote.rates.bcv.toFixed(2)}\n`;
+    }
+    message += `\n*PRODUCTOS:*\n\n`;
 
     quote.items.forEach((item: any, index: number) => {
       message += `${index + 1}. ${item.product.name}\n`;
       message += `   Cant: ${item.quantity}\n`;
       if (quote.paymentMethod === 'bs') {
-        message += `   P/U: Bs ${formatBs(item.pricing.salePriceBs)}\n`;
-        message += `   Subtotal: Bs ${formatBs(item.pricing.subtotalBs)}\n`;
+        message += `   P/U: Bs ${formatBs(item.pricing.salePriceBs + item.pricing.ivaAmount)}\n`;
+        message += `   Subtotal: Bs ${formatBs(item.pricing.totalBs)}\n`;
       } else {
         message += `   P/U: $${formatUsd(item.pricing.salePriceUsd)}\n`;
-        message += `   Subtotal: $${formatUsd(item.pricing.subtotalUsd)}\n`;
+        message += `   Subtotal: $${formatUsd(item.pricing.totalUsd)}\n`;
       }
       message += `\n`;
     });
@@ -74,6 +77,9 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
           <p className="text-blue-100">
             Forma de Pago: {paymentMethodLabels[quote.paymentMethod]}
           </p>
+          {quote.paymentMethod === 'bs' && quote.rates && (
+            <p className="text-blue-100">Tasa BCV: Bs {quote.rates.bcv.toFixed(2)}</p>
+          )}
         </div>
       </div>
 
@@ -92,10 +98,13 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
                   {quote.paymentMethod === 'bs' ? (
                     <>
                       <p className="text-sm text-gray-600">
-                        P/U: Bs {formatBs(item.pricing.salePriceBs)}
+                        P/U: Bs {formatBs(item.pricing.salePriceBs + item.pricing.ivaAmount)}
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        (Bs {formatBs(item.pricing.salePriceBs)} + IVA 16%)
                       </p>
                       <p className="font-bold text-blue-600">
-                        Bs {formatBs(item.pricing.subtotalBs)}
+                        Bs {formatBs(item.pricing.totalBs)}
                       </p>
                     </>
                   ) : (
@@ -104,7 +113,7 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
                         P/U: ${formatUsd(item.pricing.salePriceUsd)}
                       </p>
                       <p className="font-bold text-blue-600">
-                        ${formatUsd(item.pricing.subtotalUsd)}
+                        ${formatUsd(item.pricing.totalUsd)}
                       </p>
                     </>
                   )}

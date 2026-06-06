@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Trash2, Send, Edit2 } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Send } from 'lucide-react';
 import { calculatePricing, formatBs, formatUsd } from '@/lib/pricing';
 
 interface QuoteBuilderProps {
@@ -42,6 +42,9 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated }: Quot
       });
   }, []);
 
+  const activeBcv = manualBcv ? parseFloat(manualBcv) : rates.bcv;
+  const activePromedio = manualPromedio ? parseFloat(manualPromedio) : rates.promedio;
+
   useEffect(() => {
     if (selectedClientId) {
       const client = clients.find((c) => c.id === selectedClientId);
@@ -52,28 +55,22 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated }: Quot
     }
   }, [selectedClientId, clients]);
 
-  const activeBcv = manualBcv ? parseFloat(manualBcv) : rates.bcv;
-  const activePromedio = manualPromedio ? parseFloat(manualPromedio) : rates.promedio;
-  const ivaRate = 16;
-
   const addItem = () => {
     const product = products.find((p) => p.id === selectedProduct);
     if (!product) return;
-    if (activeBcv === 0 && paymentMethod === 'bs') {
+    if (paymentMethod === 'bs' && activeBcv === 0) {
       alert('Ingresa la tasa BCV para calcular precios en Bs');
       return;
     }
 
     const qty = parseInt(quantity) || 1;
-    const productMargin = product.profitMargin || 45;
     const pricing = calculatePricing({
       costUsd: product.costUsd,
       quantity: qty,
       paymentMethod,
-      profitMargin: productMargin,
+      profitMargin: product.profitMargin || 45,
       bcvRate: activeBcv,
       promedioRate: activePromedio,
-      ivaRate,
     });
 
     setItems([
@@ -96,13 +93,13 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated }: Quot
 
   const totals = items.reduce(
     (acc, item) => ({
-      usd: acc.usd + item.pricing.subtotalUsd,
-      bs: acc.bs + item.pricing.subtotalBs,
+      usd: acc.usd + item.pricing.totalUsd,
+      bs: acc.bs + item.pricing.totalBs,
     }),
     { usd: 0, bs: 0 }
   );
 
-  const createQuote = () => {
+  const createQuote = async () => {
     const quote = {
       id: Date.now().toString(),
       clientName,
@@ -114,6 +111,18 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated }: Quot
       createdAt: new Date().toLocaleDateString('es-VE'),
     };
 
+    if (!selectedClientId && clientName && clientPhone) {
+      try {
+        await fetch('/api/clientes', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ name: clientName, phone: clientPhone }),
+        });
+      } catch (e) {
+        console.error('Could not save client:', e);
+      }
+    }
+
     onQuoteCreated(quote);
   };
 
@@ -122,7 +131,7 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated }: Quot
     message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
     message += `Cliente: ${clientName}\n`;
     message += `Fecha: ${new Date().toLocaleDateString('es-VE')}\n`;
-    message += `Forma de Pago: ${paymentMethod.toUpperCase()}\n`;
+    message += `Forma de Pago: ${paymentMethod === 'bs' ? 'Bolívares (BCV)' : paymentMethod === 'cash' ? 'Efectivo USD' : paymentMethod === 'binance' ? 'Binance (USDT)' : 'Divisas'}\n`;
     if (paymentMethod === 'bs') {
       message += `Tasa BCV: Bs ${activeBcv.toFixed(2)}\n`;
     }
@@ -132,11 +141,12 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated }: Quot
       message += `${index + 1}. ${item.product.name}\n`;
       message += `   Cant: ${item.quantity}\n`;
       if (paymentMethod === 'bs') {
-        message += `   P/U: Bs ${formatBs(item.pricing.salePriceBs)}\n`;
-        message += `   Subtotal: Bs ${formatBs(item.pricing.subtotalBs)}\n`;
+        message += `   P/U: Bs ${formatBs(item.pricing.salePriceBs + item.pricing.ivaAmount)}\n`;
+        message += `   (Bs ${formatBs(item.pricing.salePriceBs)} + IVA 16%)\n`;
+        message += `   Subtotal: Bs ${formatBs(item.pricing.totalBs)}\n`;
       } else {
         message += `   P/U: $${formatUsd(item.pricing.salePriceUsd)}\n`;
-        message += `   Subtotal: $${formatUsd(item.pricing.subtotalUsd)}\n`;
+        message += `   Subtotal: $${formatUsd(item.pricing.totalUsd)}\n`;
       }
       message += `\n`;
     });
@@ -194,7 +204,7 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated }: Quot
             <input
               type="text"
               value={clientName}
-              onChange={(e) => setClientName(e.target.value)}
+              onChange={(e) => { setClientName(e.target.value); setSelectedClientId(''); }}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Nombre completo"
               required
@@ -208,7 +218,7 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated }: Quot
             <input
               type="tel"
               value={clientPhone}
-              onChange={(e) => setClientPhone(e.target.value)}
+              onChange={(e) => { setClientPhone(e.target.value); setSelectedClientId(''); }}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="584121234567"
             />
@@ -237,7 +247,7 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated }: Quot
               <p className="font-medium text-amber-800">Ingresa tasas manualmente:</p>
               <div className="grid grid-cols-2 gap-2">
                 <div>
-                  <label className="text-xs text-amber-700">BCV</label>
+                  <label className="text-xs text-amber-700">BCV (venta)</label>
                   <input
                     type="number"
                     value={manualBcv}
@@ -248,7 +258,7 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated }: Quot
                   />
                 </div>
                 <div>
-                  <label className="text-xs text-amber-700">Promedio</label>
+                  <label className="text-xs text-amber-700">Promedio (compra)</label>
                   <input
                     type="number"
                     value={manualPromedio}
@@ -263,8 +273,8 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated }: Quot
           ) : (
             <div className="bg-blue-50 p-3 rounded-lg text-sm">
               <p className="font-medium">Tasas actuales:</p>
-              <p>BCV: Bs {rates.bcv.toFixed(2)}</p>
-              <p>Promedio: Bs {rates.promedio.toFixed(2)}</p>
+              <p>BCV (venta): Bs {rates.bcv.toFixed(2)}</p>
+              <p>Promedio (compra): Bs {rates.promedio.toFixed(2)}</p>
             </div>
           )}
         </div>
@@ -282,7 +292,7 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated }: Quot
             <option value="">Seleccionar producto...</option>
             {products.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.name} - ${formatUsd(p.costUsd)} (utilidad: {p.profitMargin || 45}%)
+                {p.name} - Costo: ${formatUsd(p.costUsd)} | Utilidad: {p.profitMargin || 45}%
               </option>
             ))}
           </select>
@@ -318,47 +328,42 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated }: Quot
                   <div className="flex-1">
                     <h4 className="font-semibold text-gray-800">{item.product.name}</h4>
                     <p className="text-sm text-gray-600">Cantidad: {item.quantity}</p>
-                    <p className="text-xs text-gray-500">Utilidad: {item.product.profitMargin || 45}%</p>
+                    <p className="text-xs text-gray-500">Margen: {item.product.profitMargin || 45}%</p>
                     {paymentMethod === 'bs' ? (
-                      <div className="mt-1">
+                      <div className="mt-1 space-y-1">
                         <p className="text-sm text-gray-600">
-                          P/U: Bs {formatBs(item.pricing.salePriceBs)}
+                          Costo: Bs {formatBs(item.pricing.costBs / item.quantity)} (tasa promedio)
                         </p>
-                        <p className="text-xs text-gray-500">
-                          (${formatUsd(item.pricing.salePriceUsd)} × Bs {activeBcv.toFixed(2)} + IVA)
+                        <p className="text-sm text-gray-600">
+                          P/U: Bs {formatBs(item.pricing.salePriceBs)} + IVA Bs {formatBs(item.pricing.ivaAmount)}
+                        </p>
+                        <p className="text-sm font-medium text-blue-600">
+                          Total: Bs {formatBs(item.pricing.totalBs)}
                         </p>
                       </div>
                     ) : (
-                      <p className="text-sm text-gray-600">
-                        P/U: ${formatUsd(item.pricing.salePriceUsd)}
-                      </p>
+                      <div className="mt-1">
+                        <p className="text-sm text-gray-600">
+                          P/U: ${formatUsd(item.pricing.salePriceUsd)}
+                        </p>
+                        <p className="text-sm font-medium text-blue-600">
+                          Total: ${formatUsd(item.pricing.totalUsd)}
+                        </p>
+                      </div>
                     )}
                   </div>
-                  <div className="flex items-center gap-3">
-                    <div className="text-right">
-                      {paymentMethod === 'bs' ? (
-                        <p className="font-bold text-blue-600">
-                          Bs {formatBs(item.pricing.subtotalBs)}
-                        </p>
-                      ) : (
-                        <p className="font-bold text-blue-600">
-                          ${formatUsd(item.pricing.subtotalUsd)}
-                        </p>
-                      )}
-                    </div>
-                    <button
-                      onClick={() => removeItem(item.id)}
-                      className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
-                    >
-                      <Trash2 className="w-5 h-5" />
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => removeItem(item.id)}
+                    className="p-2 text-red-500 hover:bg-red-50 rounded-lg"
+                  >
+                    <Trash2 className="w-5 h-5" />
+                  </button>
                 </div>
               </div>
             ))}
           </div>
 
-          <div className="mt-6 pt-4 border-t border-gray-200">
+          <div className="mt-6 pt-4 border-t-2 border-gray-300">
             <div className="flex justify-between items-center">
               <span className="text-lg font-bold text-gray-800">TOTAL:</span>
               {paymentMethod === 'bs' ? (

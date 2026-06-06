@@ -5,7 +5,6 @@ export interface PricingInput {
   profitMargin: number;
   bcvRate: number;
   promedioRate: number;
-  ivaRate: number;
 }
 
 export interface PricingResult {
@@ -13,54 +12,47 @@ export interface PricingResult {
   costBs: number;
   salePriceUsd: number;
   salePriceBs: number;
-  subtotalUsd: number;
-  subtotalBs: number;
   ivaAmount: number;
-  totalUsd: number;
+  subtotalBs: number;
+  subtotalUsd: number;
   totalBs: number;
-  profitUsd: number;
-  profitBs: number;
-  profitMargin: number;
+  totalUsd: number;
 }
 
 export function calculatePricing(input: PricingInput): PricingResult {
-  const { costUsd, quantity, paymentMethod, profitMargin, bcvRate, promedioRate, ivaRate } = input;
+  const { costUsd, quantity, paymentMethod, profitMargin, bcvRate, promedioRate } = input;
 
-  const totalCostUsd = costUsd * quantity;
-  const profitMultiplier = 1 + (profitMargin / 100);
-
-  let salePriceUsd = costUsd * profitMultiplier;
-  let salePriceBs = 0;
-  let costBs = 0;
-  let ivaAmount = 0;
+  const salePriceUsd = costUsd * (1 + profitMargin / 100);
 
   if (paymentMethod === 'bs') {
-    salePriceBs = salePriceUsd * bcvRate;
-    ivaAmount = salePriceBs * (ivaRate / 100);
-    salePriceBs += ivaAmount;
-    costBs = costUsd * bcvRate;
+    const costBs = costUsd * promedioRate;
+    const salePriceBs = salePriceUsd * bcvRate;
+    const ivaAmount = salePriceBs * 0.16;
+    const totalBs = salePriceBs + ivaAmount;
+
+    return {
+      costUsd: costUsd * quantity,
+      costBs: costBs * quantity,
+      salePriceUsd,
+      salePriceBs,
+      ivaAmount,
+      subtotalBs: salePriceBs * quantity,
+      subtotalUsd: salePriceUsd * quantity,
+      totalBs: totalBs * quantity,
+      totalUsd: salePriceUsd * quantity,
+    };
   }
 
-  const subtotalUsd = salePriceUsd * quantity;
-  const subtotalBs = salePriceBs * quantity;
-  const totalUsd = subtotalUsd;
-  const totalBs = subtotalBs;
-  const profitUsd = subtotalUsd - totalCostUsd;
-  const profitBs = paymentMethod === 'bs' ? subtotalBs - (costBs * quantity) : profitUsd;
-
   return {
-    costUsd: totalCostUsd,
-    costBs: paymentMethod === 'bs' ? costBs * quantity : 0,
+    costUsd: costUsd * quantity,
+    costBs: 0,
     salePriceUsd,
-    salePriceBs,
-    subtotalUsd,
-    subtotalBs,
-    ivaAmount: paymentMethod === 'bs' ? ivaAmount * quantity : 0,
-    totalUsd,
-    totalBs,
-    profitUsd,
-    profitBs,
-    profitMargin,
+    salePriceBs: 0,
+    ivaAmount: 0,
+    subtotalBs: 0,
+    subtotalUsd: salePriceUsd * quantity,
+    totalBs: 0,
+    totalUsd: salePriceUsd * quantity,
   };
 }
 
