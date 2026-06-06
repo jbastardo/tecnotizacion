@@ -1,12 +1,24 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
 
+function mapProduct(row: any) {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description,
+    costUsd: parseFloat(row.cost_usd),
+    profitMargin: parseFloat(row.profit_margin) || 45,
+    category: row.category,
+    createdAt: row.created_at,
+  };
+}
+
 export async function GET() {
   try {
     const result = await query(
       'SELECT id, name, description, cost_usd, profit_margin, category, created_at FROM products ORDER BY created_at DESC'
     );
-    return NextResponse.json(result.rows);
+    return NextResponse.json(result.rows.map(mapProduct));
   } catch (error) {
     console.error('Error fetching products:', error);
     return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
@@ -25,7 +37,7 @@ export async function POST(request: Request) {
       [name, description || null, costUsd, profitMargin || 45, category || null]
     );
 
-    return NextResponse.json(result.rows[0], { status: 201 });
+    return NextResponse.json(mapProduct(result.rows[0]), { status: 201 });
   } catch (error) {
     console.error('Error creating product:', error);
     return NextResponse.json({ error: 'Failed to create product' }, { status: 500 });

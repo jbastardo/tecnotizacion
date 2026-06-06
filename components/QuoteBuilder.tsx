@@ -38,7 +38,7 @@ export default function QuoteBuilder({ products, onQuoteCreated }: QuoteBuilderP
     if (!product) return;
 
     const qty = parseInt(quantity) || 1;
-    const productMargin = parseFloat(product.profit_margin) || 45;
+    const productMargin = product.profitMargin || 45;
     const pricing = calculatePricing({
       costUsd: product.costUsd,
       quantity: qty,
@@ -205,7 +205,7 @@ export default function QuoteBuilder({ products, onQuoteCreated }: QuoteBuilderP
             <option value="">Seleccionar producto...</option>
             {products.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.name} - ${formatUsd(p.costUsd)} (utilidad: {p.profit_margin || 45}%)
+                {p.name} - ${formatUsd(p.costUsd)} (utilidad: {p.profitMargin || 45}%)
               </option>
             ))}
           </select>

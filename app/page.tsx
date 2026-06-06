@@ -87,7 +87,7 @@ export default function Home() {
                       </div>
                       <div className="text-right">
                         <p className="text-sm font-semibold text-blue-600">${parseFloat(p.costUsd).toFixed(2)}</p>
-                        <p className="text-xs text-green-600">+{p.profit_margin || 45}% util.</p>
+                        <p className="text-xs text-green-600">+{p.profitMargin || 45}% util.</p>
                       </div>
                     </div>
                   ))}
