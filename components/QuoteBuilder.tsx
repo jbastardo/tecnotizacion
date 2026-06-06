@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { ArrowLeft, Plus, Trash2, Send } from 'lucide-react';
 import { calculatePricing, formatBs, formatUsd } from '@/lib/pricing';
 
@@ -16,9 +16,21 @@ export default function QuoteBuilder({ products, onQuoteCreated }: QuoteBuilderP
   const [items, setItems] = useState<any[]>([]);
   const [selectedProduct, setSelectedProduct] = useState('');
   const [quantity, setQuantity] = useState('1');
+  const [rates, setRates] = useState({ bcv: 0, promedio: 0 });
+  const [loadingRates, setLoadingRates] = useState(true);
 
-  const bcvRate = 85.5;
-  const promedioRate = 89.2;
+  useEffect(() => {
+    fetch('/api/tasas')
+      .then((res) => res.json())
+      .then((data) => {
+        if (data.bcv > 0 && data.promedio > 0) {
+          setRates(data);
+        }
+        setLoadingRates(false);
+      })
+      .catch(() => setLoadingRates(false));
+  }, []);
+
   const profitMargin = 45;
   const ivaRate = 16;
 
@@ -32,8 +44,8 @@ export default function QuoteBuilder({ products, onQuoteCreated }: QuoteBuilderP
       quantity: qty,
       paymentMethod,
       profitMargin,
-      bcvRate,
-      promedioRate,
+      bcvRate: rates.bcv,
+      promedioRate: rates.promedio,
       ivaRate,
     });
 
@@ -168,6 +180,16 @@ export default function QuoteBuilder({ products, onQuoteCreated }: QuoteBuilderP
               <option value="divisas">Divisas</option>
             </select>
           </div>
+
+          {loadingRates ? (
+            <p className="text-sm text-gray-500">Cargando tasas...</p>
+          ) : (
+            <div className="bg-blue-50 p-3 rounded-lg text-sm">
+              <p className="font-medium">Tasas actuales:</p>
+              <p>BCV: Bs {rates.bcv.toFixed(2)}</p>
+              <p>Promedio: Bs {rates.promedio.toFixed(2)}</p>
+            </div>
+          )}
         </div>
       </div>
 

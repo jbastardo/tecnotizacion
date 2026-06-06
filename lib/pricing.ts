@@ -29,21 +29,16 @@ export function calculatePricing(input: PricingInput): PricingResult {
   const totalCostUsd = costUsd * quantity;
   const profitMultiplier = 1 + (profitMargin / 100);
 
-  let salePriceUsd: number;
-  let salePriceBs: number;
-  let costBs: number;
+  let salePriceUsd = costUsd * profitMultiplier;
+  let salePriceBs = 0;
+  let costBs = 0;
   let ivaAmount = 0;
 
   if (paymentMethod === 'bs') {
-    costBs = costUsd * promedioRate;
-    salePriceUsd = costUsd * profitMultiplier;
     salePriceBs = salePriceUsd * bcvRate;
     ivaAmount = salePriceBs * (ivaRate / 100);
     salePriceBs += ivaAmount;
-  } else {
-    costBs = 0;
-    salePriceUsd = costUsd * profitMultiplier;
-    salePriceBs = 0;
+    costBs = costUsd * bcvRate;
   }
 
   const subtotalUsd = salePriceUsd * quantity;

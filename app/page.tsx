@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, FileText, Settings, Package } from 'lucide-react';
 import ProductForm from '@/components/ProductForm';
 import QuoteBuilder from '@/components/QuoteBuilder';
@@ -11,10 +11,25 @@ type View = 'home' | 'products' | 'builder' | 'quote';
 export default function Home() {
   const [currentView, setCurrentView] = useState<View>('home');
   const [products, setProducts] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [currentQuote, setCurrentQuote] = useState<any>(null);
 
-  const handleProductAdded = (product: any) => {
-    setProducts([...products, product]);
+  const fetchProducts = useCallback(() => {
+    fetch('/api/products')
+      .then((res) => res.json())
+      .then((data) => {
+        setProducts(data);
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
+  }, []);
+
+  useEffect(() => {
+    fetchProducts();
+  }, [fetchProducts]);
+
+  const handleProductAdded = () => {
+    fetchProducts();
     setCurrentView('home');
   };
 
@@ -55,10 +70,27 @@ export default function Home() {
             <div className="bg-white p-6 rounded-xl shadow-md">
               <h2 className="text-lg font-semibold text-gray-800 mb-4">Resumen</h2>
               <div className="space-y-2 text-sm text-gray-600">
-                <p>Productos registrados: {products.length}</p>
+                <p>Productos registrados: {loading ? 'Cargando...' : products.length}</p>
                 <p>Presupuestos creados: 0</p>
               </div>
             </div>
+
+            {products.length > 0 && (
+              <div className="bg-white p-6 rounded-xl shadow-md">
+                <h2 className="text-lg font-semibold text-gray-800 mb-4">Productos</h2>
+                <div className="space-y-2">
+                  {products.map((p) => (
+                    <div key={p.id} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
+                      <div>
+                        <p className="font-medium text-gray-800">{p.name}</p>
+                        {p.category && <p className="text-xs text-gray-500">{p.category}</p>}
+                      </div>
+                      <p className="text-sm font-semibold text-blue-600">${parseFloat(p.costUsd).toFixed(2)}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
 

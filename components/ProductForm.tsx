@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { ArrowLeft, Save } from 'lucide-react';
 
 interface ProductFormProps {
-  onProductAdded: (product: any) => void;
+  onProductAdded: () => void;
 }
 
 export default function ProductForm({ onProductAdded }: ProductFormProps) {
@@ -12,19 +12,39 @@ export default function ProductForm({ onProductAdded }: ProductFormProps) {
   const [description, setDescription] = useState('');
   const [costUsd, setCostUsd] = useState('');
   const [category, setCategory] = useState('');
+  const [saving, setSaving] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
-    const product = {
-      id: Date.now().toString(),
-      name,
-      description,
-      costUsd: parseFloat(costUsd),
-      category,
-    };
+    setSaving(true);
 
-    onProductAdded(product);
+    try {
+      const res = await fetch('/api/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name,
+          description,
+          costUsd: parseFloat(costUsd),
+          category,
+        }),
+      });
+
+      if (res.ok) {
+        setName('');
+        setDescription('');
+        setCostUsd('');
+        setCategory('');
+        onProductAdded();
+      } else {
+        alert('Error al guardar el producto');
+      }
+    } catch (error) {
+      console.error('Error:', error);
+      alert('Error al guardar el producto');
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
@@ -98,10 +118,11 @@ export default function ProductForm({ onProductAdded }: ProductFormProps) {
 
         <button
           type="submit"
-          className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2"
+          disabled={saving}
+          className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:bg-gray-400"
         >
           <Save className="w-5 h-5" />
-          Guardar Producto
+          {saving ? 'Guardando...' : 'Guardar Producto'}
         </button>
       </form>
     </div>
