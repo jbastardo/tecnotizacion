@@ -18,7 +18,7 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated }: Quot
   const [items, setItems] = useState<any[]>([]);
   const [selectedProduct, setSelectedProduct] = useState('');
   const [quantity, setQuantity] = useState('1');
-  const [rates, setRates] = useState({ bcv: 0, promedio: 0 });
+  const [rates, setRates] = useState({ bcv: 0, promedio: 0, lastUpdated: '' });
   const [loadingRates, setLoadingRates] = useState(true);
   const [ratesError, setRatesError] = useState(false);
 
