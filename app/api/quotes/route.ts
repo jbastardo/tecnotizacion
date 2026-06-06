@@ -4,7 +4,7 @@ import { query } from '@/lib/db';
 function mapRow(row: any) {
   return {
     id: row.id,
-    quoteNumber: row.quote_number,
+    quoteNumber: row.quote_number || null,
     clientName: row.client_name,
     clientPhone: row.client_phone,
     clientEmail: row.client_email,
@@ -25,10 +25,23 @@ export async function GET() {
     const result = await query(
       `SELECT id, quote_number, client_name, client_phone, client_email, payment_method,
        status, total_usd, total_bs, notes, items_data, rates_data, created_at, updated_at
-       FROM quotes ORDER BY quote_number DESC`
+       FROM quotes ORDER BY created_at DESC`
     );
     return NextResponse.json(result.rows.map(mapRow));
-  } catch (error) {
+  } catch (error: any) {
+    // If quote_number column doesn't exist yet, fallback without it
+    if (error?.code === '42703') {
+      try {
+        const result = await query(
+          `SELECT id, client_name, client_phone, client_email, payment_method,
+           status, total_usd, total_bs, notes, items_data, rates_data, created_at, updated_at
+           FROM quotes ORDER BY created_at DESC`
+        );
+        return NextResponse.json(result.rows.map((row: any) => mapRow({ ...row, quote_number: null })));
+      } catch (e) {
+        return NextResponse.json([]);
+      }
+    }
     console.error('Error fetching quotes:', error);
     return NextResponse.json([]);
   }
