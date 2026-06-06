@@ -1,17 +1,24 @@
 import { Pool } from 'pg';
 
-if (!process.env.DATABASE_URL) {
-  throw new Error('DATABASE_URL is not defined');
+const databaseUrl = process.env.DATABASE_URL;
+
+if (!databaseUrl) {
+  console.warn('DATABASE_URL is not defined - database operations will fail');
 }
 
-export const pool = new Pool({
-  connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false,
-  },
-});
+export const pool = databaseUrl
+  ? new Pool({
+      connectionString: databaseUrl,
+      ssl: {
+        rejectUnauthorized: false,
+      },
+    })
+  : null;
 
 export async function query(text: string, params?: any[]) {
+  if (!pool) {
+    throw new Error('Database is not configured. Set DATABASE_URL environment variable.');
+  }
   const client = await pool.connect();
   try {
     const result = await client.query(text, params);
