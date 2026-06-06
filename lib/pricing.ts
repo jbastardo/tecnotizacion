@@ -22,7 +22,8 @@ export interface PricingResult {
 export function calculatePricing(input: PricingInput): PricingResult {
   const { costUsd, quantity, paymentMethod, profitMargin, bcvRate, promedioRate } = input;
 
-  const salePriceUsd = costUsd * (1 + profitMargin / 100);
+  const marginDecimal = profitMargin / 100;
+  const salePriceUsd = costUsd / (1 - marginDecimal);
 
   if (paymentMethod === 'bs') {
     const costBs = costUsd * promedioRate;
