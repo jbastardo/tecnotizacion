@@ -113,11 +113,15 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated, onSave
         }),
       });
       if (res.ok) {
-        const saved = await res.json();
-        return saved;
+        return await res.json();
+      } else {
+        const err = await res.json();
+        console.error('API error:', err);
+        alert('Error al guardar el presupuesto: ' + (err.error || 'Error desconocido'));
       }
     } catch (e) {
       console.error('Error saving quote:', e);
+      alert('Error de conexión al guardar el presupuesto');
     }
     return null;
   };
@@ -134,8 +138,8 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated, onSave
         console.error('Could not save client:', e);
       }
     }
-    await saveQuoteToDb('draft');
-    onSaved();
+    const saved = await saveQuoteToDb('draft');
+    if (saved) onSaved();
   };
 
   const sendWhatsAppAndSave = async () => {
