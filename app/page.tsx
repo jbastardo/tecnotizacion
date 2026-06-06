@@ -97,6 +97,13 @@ export default function Home() {
                 <Users className="w-10 h-10 text-orange-600" />
                 <span className="font-semibold text-gray-800">Clientes</span>
               </button>
+              <button
+                onClick={() => setCurrentView('productList')}
+                className="col-span-2 bg-white p-4 rounded-xl shadow-md hover:shadow-lg transition-shadow flex flex-col items-center gap-2"
+              >
+                <Package className="w-8 h-8 text-purple-600" />
+                <span className="font-semibold text-gray-800">Ver Productos</span>
+              </button>
             </div>
 
             <div className="bg-white p-6 rounded-xl shadow-md">
@@ -173,13 +180,13 @@ export default function Home() {
             <span className="text-xs">Inicio</span>
           </button>
           <button
-            onClick={() => setCurrentView('history')}
+            onClick={() => setCurrentView('productList')}
             className={`flex flex-col items-center gap-1 ${
-              currentView === 'history' ? 'text-blue-600' : 'text-gray-500'
+              currentView === 'productList' ? 'text-blue-600' : 'text-gray-500'
             }`}
           >
-            <ClipboardList className="w-6 h-6" />
-            <span className="text-xs">Presupuestos</span>
+            <Package className="w-6 h-6" />
+            <span className="text-xs">Productos</span>
           </button>
           <button
             onClick={() => setCurrentView('builder')}
