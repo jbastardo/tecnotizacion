@@ -16,39 +16,46 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
     divisas: 'Divisas',
   };
 
-  const items = quote.items || [];
+  // Normalize items - can come from DB (items_data) or from builder (items)
+  const items: any[] = quote.items || quote.items_data || [];
   const totals = quote.totals || { usd: quote.totalUsd || 0, bs: quote.totalBs || 0 };
+  const rates = quote.rates || quote.rates_data || {};
+  const createdAt = quote.createdAt
+    ? new Date(quote.createdAt).toLocaleDateString('es-VE')
+    : quote.created_at
+    ? new Date(quote.created_at).toLocaleDateString('es-VE')
+    : '';
 
-  const generateWhatsAppMessage = () => {
+  const buildWhatsAppMessage = () => {
     let message = `*PRESUPUESTO - TECNOTIZACIÓN*\n`;
     message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
     message += `Cliente: ${quote.clientName}\n`;
-    message += `Fecha: ${quote.createdAt}\n`;
-    message += `Forma de Pago: ${paymentMethodLabels[quote.paymentMethod]}\n`;
-    if (quote.paymentMethod === 'bs' && quote.rates) {
-      message += `Tasa BCV: Bs ${quote.rates.bcv.toFixed(2)}\n`;
+    message += `Fecha: ${createdAt}\n`;
+    message += `Forma de Pago: ${paymentMethodLabels[quote.paymentMethod] || quote.paymentMethod}\n`;
+    if (quote.paymentMethod === 'bs' && rates?.bcv) {
+      message += `Tasa BCV: Bs ${Number(rates.bcv).toFixed(2)}\n`;
     }
-    message += `\n*PRODUCTOS:*\n\n`;
 
-    items.forEach((item: any, index: number) => {
-      const name = item.product?.name || item.productName || 'Producto';
-      const qty = item.quantity || 1;
-      message += `${index + 1}. ${name}\n`;
-      message += `   Cant: ${qty}\n`;
-      if (quote.paymentMethod === 'bs') {
-        const saleBs = item.pricing?.salePriceBs ?? item.salePriceBs ?? 0;
-        const iva = item.pricing?.ivaAmount ?? 0;
-        const totalBs = item.pricing?.totalBs ?? item.subtotalBs ?? (saleBs + iva) * qty;
-        message += `   P/U: Bs ${formatBs(saleBs + iva)}\n`;
-        message += `   Subtotal: Bs ${formatBs(totalBs)}\n`;
-      } else {
-        const saleUsd = item.pricing?.salePriceUsd ?? item.salePriceUsd ?? 0;
-        const totalUsd = item.pricing?.totalUsd ?? item.subtotalUsd ?? saleUsd * qty;
-        message += `   P/U: $${formatUsd(saleUsd)}\n`;
-        message += `   Subtotal: $${formatUsd(totalUsd)}\n`;
-      }
-      message += `\n`;
-    });
+    if (items.length > 0) {
+      message += `\n*PRODUCTOS:*\n\n`;
+      items.forEach((item: any, index: number) => {
+        const name = item.product?.name || item.productName || '';
+        const qty = item.quantity || 1;
+        const pricing = item.pricing || {};
+        message += `${index + 1}. ${name}\n`;
+        message += `   Cant: ${qty}\n`;
+        if (quote.paymentMethod === 'bs') {
+          const unitBs = (pricing.salePriceBs || 0) + (pricing.ivaAmount || 0);
+          const subtotalBs = pricing.totalBs || 0;
+          message += `   P/U: Bs ${formatBs(unitBs)}\n`;
+          message += `   Subtotal: Bs ${formatBs(subtotalBs)}\n`;
+        } else {
+          message += `   P/U: $${formatUsd(pricing.salePriceUsd || 0)}\n`;
+          message += `   Subtotal: $${formatUsd(pricing.totalUsd || 0)}\n`;
+        }
+        message += `\n`;
+      });
+    }
 
     message += `━━━━━━━━━━━━━━━━━━━━\n`;
     if (quote.paymentMethod === 'bs') {
@@ -58,84 +65,83 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
     }
     message += `\nPresupuesto válido por 7 días.\n`;
     message += `¡Gracias por su preferencia!`;
-
     return message;
   };
 
   const sendWhatsApp = () => {
-    const message = generateWhatsAppMessage();
-    const phone = quote.clientPhone?.replace(/[^0-9]/g, '') || '';
-    const url = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
-    window.open(url, '_blank');
+    const message = buildWhatsAppMessage();
+    const phone = (quote.clientPhone || '').replace(/[^0-9]/g, '');
+    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
   };
 
   return (
     <div className="bg-white rounded-xl shadow-md overflow-hidden">
       <div className="bg-blue-600 text-white p-6">
         <div className="flex items-center gap-3 mb-4">
-          <button
-            onClick={onBack}
-            className="p-2 hover:bg-blue-700 rounded-lg"
-          >
+          <button onClick={onBack} className="p-2 hover:bg-blue-700 rounded-lg">
             <ArrowLeft className="w-5 h-5" />
           </button>
           <h2 className="text-xl font-bold">Presupuesto</h2>
         </div>
         <div className="space-y-1 text-sm">
           <p className="font-semibold text-2xl">{quote.clientName}</p>
-          <p className="text-blue-100">Fecha: {quote.createdAt}</p>
-          <p className="text-blue-100">
-            Forma de Pago: {paymentMethodLabels[quote.paymentMethod]}
-          </p>
-          {quote.status && (
-            <p className="text-blue-100">Estado: {quote.status}</p>
-          )}
-          {quote.paymentMethod === 'bs' && quote.rates && (
-            <p className="text-blue-100">Tasa BCV: Bs {quote.rates.bcv.toFixed(2)}</p>
+          <p className="text-blue-100">Fecha: {createdAt}</p>
+          <p className="text-blue-100">Forma de Pago: {paymentMethodLabels[quote.paymentMethod] || quote.paymentMethod}</p>
+          {quote.paymentMethod === 'bs' && rates?.bcv > 0 && (
+            <p className="text-blue-100">Tasa BCV: Bs {Number(rates.bcv).toFixed(2)}</p>
           )}
         </div>
       </div>
 
       <div className="p-6">
-        <h3 className="text-lg font-semibold text-gray-800 mb-4">Detalle de Productos</h3>
-        
-        <div className="space-y-4">
-          {items.map((item: any, index: number) => {
-            const name = item.product?.name || item.productName || 'Producto';
-            const qty = item.quantity || 1;
-            return (
-            <div key={item.id || index} className="border-b border-gray-200 pb-4 last:border-0">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <h4 className="font-semibold text-gray-800">{name}</h4>
-                  <p className="text-sm text-gray-600">Cantidad: {qty}</p>
-                </div>
-                <div className="text-right">
-                  {quote.paymentMethod === 'bs' ? (
-                    <>
-                      <p className="text-sm text-gray-600">
-                        P/U: Bs {formatBs((item.pricing?.salePriceBs ?? item.salePriceBs ?? 0) + (item.pricing?.ivaAmount ?? 0))}
-                      </p>
-                      <p className="font-bold text-blue-600">
-                        Bs {formatBs(item.pricing?.totalBs ?? item.subtotalBs ?? 0)}
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <p className="text-sm text-gray-600">
-                        P/U: ${formatUsd(item.pricing?.salePriceUsd ?? item.salePriceUsd ?? 0)}
-                      </p>
-                      <p className="font-bold text-blue-600">
-                        ${formatUsd(item.pricing?.totalUsd ?? item.subtotalUsd ?? 0)}
-                      </p>
-                    </>
-                  )}
-                </div>
-              </div>
+        {items.length > 0 ? (
+          <>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Detalle de Productos</h3>
+            <div className="space-y-4">
+              {items.map((item: any, index: number) => {
+                const name = item.product?.name || item.productName || '';
+                const qty = item.quantity || 1;
+                const pricing = item.pricing || {};
+                return (
+                  <div key={item.id || index} className="border-b border-gray-200 pb-4 last:border-0">
+                    <div className="flex justify-between items-start">
+                      <div>
+                        <h4 className="font-semibold text-gray-800">{name}</h4>
+                        <p className="text-sm text-gray-600">Cantidad: {qty}</p>
+                      </div>
+                      <div className="text-right">
+                        {quote.paymentMethod === 'bs' ? (
+                          <>
+                            <p className="text-sm text-gray-600">
+                              P/U: Bs {formatBs((pricing.salePriceBs || 0) + (pricing.ivaAmount || 0))}
+                            </p>
+                            <p className="text-xs text-gray-500">
+                              (Bs {formatBs(pricing.salePriceBs || 0)} + IVA 16%)
+                            </p>
+                            <p className="font-bold text-blue-600">
+                              Bs {formatBs(pricing.totalBs || 0)}
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-sm text-gray-600">
+                              P/U: ${formatUsd(pricing.salePriceUsd || 0)}
+                            </p>
+                            <p className="font-bold text-blue-600">
+                              ${formatUsd(pricing.totalUsd || 0)}
+                            </p>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
-            );
-          })}
-        </div>
+          </>
+        ) : (
+          <p className="text-gray-500 text-sm mb-4">Sin detalle de productos</p>
+        )}
 
         <div className="mt-6 pt-4 border-t-2 border-gray-300">
           <div className="flex justify-between items-center">
@@ -150,9 +156,7 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
               </span>
             )}
           </div>
-          <p className="text-sm text-gray-500 mt-2 text-center">
-            Presupuesto válido por 7 días
-          </p>
+          <p className="text-sm text-gray-500 mt-2 text-center">Presupuesto válido por 7 días</p>
         </div>
 
         <div className="mt-6 space-y-3">

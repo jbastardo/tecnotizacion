@@ -110,6 +110,17 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated, onSave
           paymentMethod,
           totalUsd: totals.usd,
           totalBs: totals.bs,
+          rates: { bcv: activeBcv, promedio: activePromedio },
+          items: items.map((item) => ({
+            id: item.id,
+            product: {
+              id: item.product?.id,
+              name: item.product?.name,
+              costUsd: item.product?.costUsd,
+            },
+            quantity: item.quantity,
+            pricing: item.pricing,
+          })),
         }),
       });
       if (res.ok) {
