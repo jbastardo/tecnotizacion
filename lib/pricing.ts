@@ -57,15 +57,17 @@ export function calculatePricing(input: PricingInput): PricingResult {
   };
 }
 
-export function formatBs(amount: number): string {
-  return amount.toLocaleString('es-VE', {
+export function formatBs(amount: number | null | undefined): string {
+  const num = amount ?? 0;
+  return num.toLocaleString('es-VE', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
 }
 
-export function formatUsd(amount: number): string {
-  return amount.toLocaleString('en-US', {
+export function formatUsd(amount: number | null | undefined): string {
+  const num = amount ?? 0;
+  return num.toLocaleString('en-US', {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   });
