@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, FileText, Settings, Package, Users, ClipboardList } from 'lucide-react';
+import { Plus, FileText, Package, Users, ClipboardList, LogOut } from 'lucide-react';
 import ProductForm from '@/components/ProductForm';
 import ProductList from '@/components/ProductList';
 import ClientManager from '@/components/ClientManager';
@@ -9,31 +9,30 @@ import QuoteBuilder from '@/components/QuoteBuilder';
 import QuoteView from '@/components/QuoteView';
 import QuoteHistory from '@/components/QuoteHistory';
 
-type View = 'home' | 'products' | 'productList' | 'clients' | 'builder' | 'quote' | 'history' | 'viewQuote';
+type View = 'home' | 'products' | 'productList' | 'clients' | 'builder' | 'history' | 'viewQuote';
 
 export default function Home() {
   const [currentView, setCurrentView] = useState<View>('home');
   const [products, setProducts] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [currentQuote, setCurrentQuote] = useState<any>(null);
   const [viewingQuote, setViewingQuote] = useState<any>(null);
 
-  const fetchProducts = useCallback(() => {
-    fetch('/api/products')
-      .then((res) => res.json())
-      .then((data) => {
-        setProducts(data);
-        setLoading(false);
-      })
-      .catch(() => setLoading(false));
+  const fetchProducts = useCallback(async () => {
+    try {
+      const res = await fetch('/api/products');
+      const data = await res.json();
+      setProducts(Array.isArray(data) ? data : []);
+    } catch { /* silent */ }
+    setLoading(false);
   }, []);
 
-  const fetchClients = useCallback(() => {
-    fetch('/api/clientes')
-      .then((res) => res.json())
-      .then((data) => setClients(data))
-      .catch(() => {});
+  const fetchClients = useCallback(async () => {
+    try {
+      const res = await fetch('/api/clientes');
+      const data = await res.json();
+      setClients(Array.isArray(data) ? data : []);
+    } catch { /* silent */ }
   }, []);
 
   useEffect(() => {
@@ -46,9 +45,14 @@ export default function Home() {
     setCurrentView('home');
   };
 
-  const handleQuoteCreated = (quote: any) => {
-    setCurrentQuote(quote);
-    setCurrentView('quote');
+  const handleProductListBack = () => {
+    fetchProducts(); // refresh in case of edits/deletes
+    setCurrentView('home');
+  };
+
+  const handleClientsBack = () => {
+    fetchClients(); // refresh in case of changes
+    setCurrentView('home');
   };
 
   const handleViewQuote = (quote: any) => {
@@ -56,93 +60,121 @@ export default function Home() {
     setCurrentView('viewQuote');
   };
 
+  const handleLogout = async () => {
+    await fetch('/api/auth', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ action: 'logout' }) });
+    window.location.href = '/login';
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-blue-600 text-white p-4 shadow-lg">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold">Tecnotización</h1>
-          <p className="text-blue-100 text-sm">Presupuestos Profesionales</p>
+        <div className="max-w-4xl mx-auto flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold">Tecnotización</h1>
+            <p className="text-blue-100 text-sm">Presupuestos Profesionales</p>
+          </div>
+          <button onClick={handleLogout} className="p-2 hover:bg-blue-700 rounded-lg" title="Cerrar sesión">
+            <LogOut className="w-5 h-5" />
+          </button>
         </div>
       </header>
 
       <main className="max-w-4xl mx-auto p-4 pb-24">
+
         {currentView === 'home' && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <button
-                onClick={() => setCurrentView('products')}
-                className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow flex flex-col items-center gap-3"
-              >
-                <Plus className="w-10 h-10 text-blue-600" />
-                <span className="font-semibold text-gray-800">Agregar Producto</span>
+          <div className="space-y-4 mt-2">
+            {/* Primary action - full width */}
+            <button onClick={() => setCurrentView('builder')}
+              className="w-full bg-blue-600 text-white p-5 rounded-xl shadow-md hover:bg-blue-700 transition-colors flex items-center gap-4">
+              <FileText className="w-10 h-10 text-blue-200 flex-shrink-0" />
+              <div className="text-left">
+                <p className="font-bold text-lg">Nuevo Presupuesto</p>
+                <p className="text-blue-200 text-sm">Crear y enviar por WhatsApp</p>
+              </div>
+            </button>
+
+            {/* Secondary actions grid */}
+            <div className="grid grid-cols-2 gap-3">
+              <button onClick={() => setCurrentView('history')}
+                className="bg-white p-5 rounded-xl shadow-md hover:shadow-lg transition-shadow flex flex-col items-center gap-2">
+                <ClipboardList className="w-9 h-9 text-indigo-600" />
+                <span className="font-semibold text-gray-800 text-sm">Presupuestos</span>
               </button>
-              <button
-                onClick={() => setCurrentView('builder')}
-                className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow flex flex-col items-center gap-3"
-              >
-                <FileText className="w-10 h-10 text-green-600" />
-                <span className="font-semibold text-gray-800">Presupuesto</span>
+              <button onClick={() => setCurrentView('clients')}
+                className="bg-white p-5 rounded-xl shadow-md hover:shadow-lg transition-shadow flex flex-col items-center gap-2">
+                <Users className="w-9 h-9 text-orange-600" />
+                <span className="font-semibold text-gray-800 text-sm">Clientes</span>
               </button>
-              <button
-                onClick={() => setCurrentView('history')}
-                className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow flex flex-col items-center gap-3"
-              >
-                <ClipboardList className="w-10 h-10 text-indigo-600" />
-                <span className="font-semibold text-gray-800">Presupuestos</span>
+              <button onClick={() => setCurrentView('products')}
+                className="bg-white p-5 rounded-xl shadow-md hover:shadow-lg transition-shadow flex flex-col items-center gap-2">
+                <Plus className="w-9 h-9 text-green-600" />
+                <span className="font-semibold text-gray-800 text-sm">Agregar Producto</span>
               </button>
-              <button
-                onClick={() => setCurrentView('clients')}
-                className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow flex flex-col items-center gap-3"
-              >
-                <Users className="w-10 h-10 text-orange-600" />
-                <span className="font-semibold text-gray-800">Clientes</span>
-              </button>
-              <button
-                onClick={() => setCurrentView('productList')}
-                className="col-span-2 bg-white p-4 rounded-xl shadow-md hover:shadow-lg transition-shadow flex flex-col items-center gap-2"
-              >
-                <Package className="w-8 h-8 text-purple-600" />
-                <span className="font-semibold text-gray-800">Ver Productos</span>
+              <button onClick={() => setCurrentView('productList')}
+                className="bg-white p-5 rounded-xl shadow-md hover:shadow-lg transition-shadow flex flex-col items-center gap-2">
+                <Package className="w-9 h-9 text-purple-600" />
+                <span className="font-semibold text-gray-800 text-sm">Ver Productos</span>
               </button>
             </div>
 
-            <div className="bg-white p-6 rounded-xl shadow-md">
-              <h2 className="text-lg font-semibold text-gray-800 mb-4">Resumen</h2>
-              <div className="space-y-2 text-sm text-gray-600">
-                <p>Productos registrados: {loading ? 'Cargando...' : products.length}</p>
-                <p>Clientes registrados: {clients.length}</p>
+            {/* Summary */}
+            <div className="bg-white p-5 rounded-xl shadow-md">
+              <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Resumen</h2>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <p className="text-2xl font-bold text-gray-800">{loading ? '—' : products.length}</p>
+                  <p className="text-sm text-gray-500">Productos</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold text-gray-800">{clients.length}</p>
+                  <p className="text-sm text-gray-500">Clientes</p>
+                </div>
               </div>
             </div>
 
+            {/* Recent products - no margin shown */}
             {products.length > 0 && (
-              <div className="bg-white p-6 rounded-xl shadow-md">
-                <h2 className="text-lg font-semibold text-gray-800 mb-4">Productos Recientes</h2>
-                <div className="space-y-2">
-                  {products.slice(0, 5).map((p) => (
-                    <div key={p.id} className="flex justify-between items-center py-2 border-b border-gray-100 last:border-0">
+              <div className="bg-white p-5 rounded-xl shadow-md">
+                <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">
+                  Productos Recientes
+                </h2>
+                <div className="divide-y divide-gray-100">
+                  {products.slice(0, 4).map((p) => (
+                    <div key={p.id} className="flex justify-between items-center py-2.5">
                       <div>
-                        <p className="font-medium text-gray-800">{p.name}</p>
-                        {p.category && <p className="text-xs text-gray-500">{p.category}</p>}
+                        <p className="font-medium text-gray-800 text-sm">{p.name}</p>
+                        {p.category && <p className="text-xs text-gray-400">{p.category}</p>}
                       </div>
-                      <p className="text-sm font-semibold text-blue-600">${p.costUsd.toFixed(2)}</p>
+                      <p className="text-sm font-semibold text-blue-600">
+                        ${(p.costUsd ?? 0).toFixed(2)}
+                      </p>
                     </div>
                   ))}
                 </div>
+                {products.length > 4 && (
+                  <button onClick={() => setCurrentView('productList')}
+                    className="mt-2 text-sm text-blue-600 hover:underline w-full text-center">
+                    Ver todos ({products.length})
+                  </button>
+                )}
               </div>
             )}
           </div>
         )}
 
         {currentView === 'products' && (
-          <ProductForm onProductAdded={handleProductAdded} />
+          <ProductForm
+            onProductAdded={handleProductAdded}
+            onBack={() => setCurrentView('home')}
+          />
         )}
 
         {currentView === 'productList' && (
-          <ProductList onBack={() => setCurrentView('home')} />
+          <ProductList onBack={handleProductListBack} />
         )}
 
         {currentView === 'clients' && (
-          <ClientManager onBack={() => setCurrentView('home')} />
+          <ClientManager onBack={handleClientsBack} />
         )}
 
         {currentView === 'history' && (
@@ -153,60 +185,41 @@ export default function Home() {
           <QuoteBuilder
             products={products}
             clients={clients}
-            onQuoteCreated={handleQuoteCreated}
+            onBack={() => setCurrentView('home')}
             onSaved={() => setCurrentView('history')}
           />
         )}
 
-        {currentView === 'quote' && currentQuote && (
-          <QuoteView quote={currentQuote} onBack={() => setCurrentView('home')} />
-        )}
-
         {currentView === 'viewQuote' && viewingQuote && (
-          <QuoteView quote={viewingQuote} onBack={() => setCurrentView('history')} />
+          <QuoteView
+            quote={viewingQuote}
+            onBack={() => setCurrentView('history')}
+          />
         )}
       </main>
 
+      {/* Bottom nav */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg">
-        <div className="max-w-4xl mx-auto flex justify-around p-3">
-          <button
-            onClick={() => setCurrentView('home')}
-            className={`flex flex-col items-center gap-1 ${
-              currentView === 'home' ? 'text-blue-600' : 'text-gray-500'
-            }`}
-          >
-            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
-            </svg>
-            <span className="text-xs">Inicio</span>
-          </button>
-          <button
-            onClick={() => setCurrentView('productList')}
-            className={`flex flex-col items-center gap-1 ${
-              currentView === 'productList' ? 'text-blue-600' : 'text-gray-500'
-            }`}
-          >
-            <Package className="w-6 h-6" />
-            <span className="text-xs">Productos</span>
-          </button>
-          <button
-            onClick={() => setCurrentView('builder')}
-            className={`flex flex-col items-center gap-1 ${
-              currentView === 'builder' ? 'text-blue-600' : 'text-gray-500'
-            }`}
-          >
-            <Plus className="w-6 h-6" />
-            <span className="text-xs">Nuevo</span>
-          </button>
-          <button
-            onClick={() => setCurrentView('clients')}
-            className={`flex flex-col items-center gap-1 ${
-              currentView === 'clients' ? 'text-blue-600' : 'text-gray-500'
-            }`}
-          >
-            <Users className="w-6 h-6" />
-            <span className="text-xs">Clientes</span>
-          </button>
+        <div className="max-w-4xl mx-auto flex justify-around p-2">
+          {[
+            { view: 'home', label: 'Inicio', icon: (
+              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
+              </svg>
+            )},
+            { view: 'builder', label: 'Nuevo', icon: <Plus className="w-6 h-6" /> },
+            { view: 'history', label: 'Presupuestos', icon: <ClipboardList className="w-6 h-6" /> },
+            { view: 'productList', label: 'Productos', icon: <Package className="w-6 h-6" /> },
+            { view: 'clients', label: 'Clientes', icon: <Users className="w-6 h-6" /> },
+          ].map(({ view, label, icon }) => (
+            <button key={view} onClick={() => setCurrentView(view as View)}
+              className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg ${
+                currentView === view ? 'text-blue-600' : 'text-gray-500'
+              }`}>
+              {icon}
+              <span className="text-xs">{label}</span>
+            </button>
+          ))}
         </div>
       </nav>
     </div>

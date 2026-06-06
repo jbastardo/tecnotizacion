@@ -29,7 +29,6 @@ export async function GET() {
     );
     return NextResponse.json(result.rows.map(mapRow));
   } catch (error: any) {
-    // If quote_number column doesn't exist yet, fallback without it
     if (error?.code === '42703') {
       try {
         const result = await query(
@@ -50,11 +49,15 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { clientName, clientPhone, clientEmail, paymentMethod, totalUsd, totalBs, notes, items, rates } = body;
+    const { clientName, clientPhone, clientEmail, paymentMethod, totalUsd, totalBs, notes, items, rates, status } = body;
+
+    if (!clientName || items?.length === 0) {
+      return NextResponse.json({ error: 'clientName and at least one item are required' }, { status: 400 });
+    }
 
     const result = await query(
-      `INSERT INTO quotes (client_name, client_phone, client_email, payment_method, total_usd, total_bs, notes, items_data, rates_data)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `INSERT INTO quotes (client_name, client_phone, client_email, payment_method, total_usd, total_bs, notes, items_data, rates_data, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10)
        RETURNING id, quote_number, client_name, client_phone, client_email, payment_method, status, total_usd, total_bs, notes, items_data, rates_data, created_at, updated_at`,
       [
         clientName,
@@ -66,6 +69,7 @@ export async function POST(request: Request) {
         notes || null,
         JSON.stringify(items || []),
         JSON.stringify(rates || {}),
+        status || 'draft',
       ]
     );
 
@@ -102,7 +106,6 @@ export async function DELETE(request: Request) {
   try {
     const body = await request.json();
     const { id } = body;
-
     await query('DELETE FROM quotes WHERE id = $1', [id]);
     return NextResponse.json({ success: true });
   } catch (error) {

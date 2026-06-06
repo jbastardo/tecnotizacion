@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { getSession } from '@/lib/auth';
 
 function mapProduct(row: any) {
   return {
@@ -14,9 +15,12 @@ function mapProduct(row: any) {
 }
 
 export async function GET() {
+  const session = await getSession();
+  const tenantFilter = session ? `WHERE tenant_id = '${session.tenantId}'` : '';
   try {
     const result = await query(
-      'SELECT id, name, description, cost_usd, profit_margin, category, created_at FROM products ORDER BY created_at DESC'
+      `SELECT id, name, description, cost_usd, profit_margin, category, created_at
+       FROM products ${tenantFilter} ORDER BY created_at DESC`
     );
     return NextResponse.json(result.rows.map(mapProduct));
   } catch (error) {
@@ -26,16 +30,24 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const session = await getSession();
   try {
-    const body = await request.json();
-    const { name, description, costUsd, profitMargin, category } = body;
+    const { name, description, costUsd, profitMargin, category } = await request.json();
+    if (!name || !costUsd) return NextResponse.json({ error: 'name and costUsd required' }, { status: 400 });
 
-    const result = await query(
-      `INSERT INTO products (name, description, cost_usd, profit_margin, category)
-       VALUES ($1, $2, $3, $4, $5)
-       RETURNING id, name, description, cost_usd, profit_margin, category, created_at`,
-      [name, description || null, costUsd, profitMargin || 45, category || null]
-    );
+    const result = session
+      ? await query(
+          `INSERT INTO products (tenant_id, name, description, cost_usd, profit_margin, category)
+           VALUES ($1, $2, $3, $4, $5, $6)
+           RETURNING id, name, description, cost_usd, profit_margin, category, created_at`,
+          [session.tenantId, name, description || null, costUsd, profitMargin || 45, category || null]
+        )
+      : await query(
+          `INSERT INTO products (name, description, cost_usd, profit_margin, category)
+           VALUES ($1, $2, $3, $4, $5)
+           RETURNING id, name, description, cost_usd, profit_margin, category, created_at`,
+          [name, description || null, costUsd, profitMargin || 45, category || null]
+        );
 
     return NextResponse.json(mapProduct(result.rows[0]), { status: 201 });
   } catch (error) {
@@ -45,21 +57,20 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  const session = await getSession();
   try {
-    const body = await request.json();
-    const { id, name, description, costUsd, profitMargin, category } = body;
+    const { id, name, description, costUsd, profitMargin, category } = await request.json();
+    if (!id || !name) return NextResponse.json({ error: 'id and name required' }, { status: 400 });
 
+    const tenantClause = session ? `AND tenant_id = '${session.tenantId}'` : '';
     const result = await query(
       `UPDATE products SET name = $1, description = $2, cost_usd = $3, profit_margin = $4, category = $5
-       WHERE id = $6
+       WHERE id = $6 ${tenantClause}
        RETURNING id, name, description, cost_usd, profit_margin, category, created_at`,
       [name, description || null, costUsd, profitMargin || 45, category || null, id]
     );
 
-    if (result.rows.length === 0) {
-      return NextResponse.json({ error: 'Product not found' }, { status: 404 });
-    }
-
+    if (result.rows.length === 0) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
     return NextResponse.json(mapProduct(result.rows[0]));
   } catch (error) {
     console.error('Error updating product:', error);
@@ -68,11 +79,13 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const session = await getSession();
   try {
-    const body = await request.json();
-    const { id } = body;
+    const { id } = await request.json();
+    if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
 
-    await query('DELETE FROM products WHERE id = $1', [id]);
+    const tenantClause = session ? `AND tenant_id = '${session.tenantId}'` : '';
+    await query(`DELETE FROM products WHERE id = $1 ${tenantClause}`, [id]);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting product:', error);
