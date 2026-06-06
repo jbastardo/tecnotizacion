@@ -33,6 +33,7 @@ export async function getSession(): Promise<SessionData | null> {
       role: row.role,
     };
   } catch {
+    // Sessions table may not exist yet - return null gracefully
     return null;
   }
 }
