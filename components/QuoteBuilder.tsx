@@ -98,17 +98,6 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated }: Quot
   );
 
   const createQuote = async () => {
-    const quote = {
-      id: Date.now().toString(),
-      clientName,
-      clientPhone,
-      paymentMethod,
-      items,
-      totals,
-      rates: { bcv: activeBcv, promedio: activePromedio },
-      createdAt: new Date().toLocaleDateString('es-VE'),
-    };
-
     if (!selectedClientId && clientName && clientPhone) {
       try {
         await fetch('/api/clientes', {
@@ -121,7 +110,41 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated }: Quot
       }
     }
 
-    onQuoteCreated(quote);
+    const quoteData = {
+      clientName,
+      clientPhone,
+      paymentMethod,
+      totalUsd: totals.usd,
+      totalBs: totals.bs,
+      rates: { bcv: activeBcv, promedio: activePromedio },
+      items: items.map((item) => ({
+        id: item.id,
+        product: { id: item.product?.id, name: item.product?.name, costUsd: item.product?.costUsd },
+        quantity: item.quantity,
+        pricing: item.pricing,
+      })),
+    };
+
+    try {
+      const res = await fetch('/api/quotes', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(quoteData),
+      });
+
+      if (res.ok) {
+        const savedQuote = await res.json();
+        onQuoteCreated(savedQuote);
+      } else {
+        console.error('Failed to save quote');
+        const localQuote = { ...quoteData, id: Date.now().toString(), status: 'draft', createdAt: new Date().toLocaleDateString('es-VE'), totals: { usd: totals.usd, bs: totals.bs } };
+        onQuoteCreated(localQuote);
+      }
+    } catch (error) {
+      console.error('Error saving quote:', error);
+      const localQuote = { ...quoteData, id: Date.now().toString(), status: 'draft', createdAt: new Date().toLocaleDateString('es-VE'), totals: { usd: totals.usd, bs: totals.bs } };
+      onQuoteCreated(localQuote);
+    }
   };
 
   const sendWhatsApp = () => {

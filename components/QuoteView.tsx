@@ -16,6 +16,9 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
     divisas: 'Divisas',
   };
 
+  const items = quote.items || [];
+  const totals = quote.totals || { usd: quote.totalUsd || 0, bs: quote.totalBs || 0 };
+
   const generateWhatsAppMessage = () => {
     let message = `*PRESUPUESTO - TECNOTIZACIÓN*\n`;
     message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
@@ -27,24 +30,31 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
     }
     message += `\n*PRODUCTOS:*\n\n`;
 
-    quote.items.forEach((item: any, index: number) => {
-      message += `${index + 1}. ${item.product.name}\n`;
-      message += `   Cant: ${item.quantity}\n`;
+    items.forEach((item: any, index: number) => {
+      const name = item.product?.name || item.productName || 'Producto';
+      const qty = item.quantity || 1;
+      message += `${index + 1}. ${name}\n`;
+      message += `   Cant: ${qty}\n`;
       if (quote.paymentMethod === 'bs') {
-        message += `   P/U: Bs ${formatBs(item.pricing.salePriceBs + item.pricing.ivaAmount)}\n`;
-        message += `   Subtotal: Bs ${formatBs(item.pricing.totalBs)}\n`;
+        const saleBs = item.pricing?.salePriceBs ?? item.salePriceBs ?? 0;
+        const iva = item.pricing?.ivaAmount ?? 0;
+        const totalBs = item.pricing?.totalBs ?? item.subtotalBs ?? (saleBs + iva) * qty;
+        message += `   P/U: Bs ${formatBs(saleBs + iva)}\n`;
+        message += `   Subtotal: Bs ${formatBs(totalBs)}\n`;
       } else {
-        message += `   P/U: $${formatUsd(item.pricing.salePriceUsd)}\n`;
-        message += `   Subtotal: $${formatUsd(item.pricing.totalUsd)}\n`;
+        const saleUsd = item.pricing?.salePriceUsd ?? item.salePriceUsd ?? 0;
+        const totalUsd = item.pricing?.totalUsd ?? item.subtotalUsd ?? saleUsd * qty;
+        message += `   P/U: $${formatUsd(saleUsd)}\n`;
+        message += `   Subtotal: $${formatUsd(totalUsd)}\n`;
       }
       message += `\n`;
     });
 
     message += `━━━━━━━━━━━━━━━━━━━━\n`;
     if (quote.paymentMethod === 'bs') {
-      message += `*TOTAL: Bs ${formatBs(quote.totals.bs)}*\n`;
+      message += `*TOTAL: Bs ${formatBs(totals.bs)}*\n`;
     } else {
-      message += `*TOTAL: $${formatUsd(quote.totals.usd)}*\n`;
+      message += `*TOTAL: $${formatUsd(totals.usd)}*\n`;
     }
     message += `\nPresupuesto válido por 7 días.\n`;
     message += `¡Gracias por su preferencia!`;
@@ -77,6 +87,9 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
           <p className="text-blue-100">
             Forma de Pago: {paymentMethodLabels[quote.paymentMethod]}
           </p>
+          {quote.status && (
+            <p className="text-blue-100">Estado: {quote.status}</p>
+          )}
           {quote.paymentMethod === 'bs' && quote.rates && (
             <p className="text-blue-100">Tasa BCV: Bs {quote.rates.bcv.toFixed(2)}</p>
           )}
@@ -87,43 +100,41 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
         <h3 className="text-lg font-semibold text-gray-800 mb-4">Detalle de Productos</h3>
         
         <div className="space-y-4">
-          {quote.items.map((item: any, index: number) => (
-            <div key={item.id} className="border-b border-gray-200 pb-4 last:border-0">
+          {items.map((item: any, index: number) => {
+            const name = item.product?.name || item.productName || 'Producto';
+            const qty = item.quantity || 1;
+            return (
+            <div key={item.id || index} className="border-b border-gray-200 pb-4 last:border-0">
               <div className="flex justify-between items-start mb-2">
                 <div>
-                  <h4 className="font-semibold text-gray-800">{item.product.name}</h4>
-                  <p className="text-sm text-gray-600">Cantidad: {item.quantity}</p>
+                  <h4 className="font-semibold text-gray-800">{name}</h4>
+                  <p className="text-sm text-gray-600">Cantidad: {qty}</p>
                 </div>
                 <div className="text-right">
                   {quote.paymentMethod === 'bs' ? (
                     <>
                       <p className="text-sm text-gray-600">
-                        P/U: Bs {formatBs(item.pricing.salePriceBs + item.pricing.ivaAmount)}
-                      </p>
-                      <p className="text-xs text-gray-500">
-                        (Bs {formatBs(item.pricing.salePriceBs)} + IVA 16%)
+                        P/U: Bs {formatBs((item.pricing?.salePriceBs ?? item.salePriceBs ?? 0) + (item.pricing?.ivaAmount ?? 0))}
                       </p>
                       <p className="font-bold text-blue-600">
-                        Bs {formatBs(item.pricing.totalBs)}
+                        Bs {formatBs(item.pricing?.totalBs ?? item.subtotalBs ?? 0)}
                       </p>
                     </>
                   ) : (
                     <>
                       <p className="text-sm text-gray-600">
-                        P/U: ${formatUsd(item.pricing.salePriceUsd)}
+                        P/U: ${formatUsd(item.pricing?.salePriceUsd ?? item.salePriceUsd ?? 0)}
                       </p>
                       <p className="font-bold text-blue-600">
-                        ${formatUsd(item.pricing.totalUsd)}
+                        ${formatUsd(item.pricing?.totalUsd ?? item.subtotalUsd ?? 0)}
                       </p>
                     </>
                   )}
                 </div>
               </div>
-              {item.product.description && (
-                <p className="text-sm text-gray-500 mt-1">{item.product.description}</p>
-              )}
             </div>
-          ))}
+            );
+          })}
         </div>
 
         <div className="mt-6 pt-4 border-t-2 border-gray-300">
@@ -131,11 +142,11 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
             <span className="text-xl font-bold text-gray-800">TOTAL:</span>
             {quote.paymentMethod === 'bs' ? (
               <span className="text-3xl font-bold text-blue-600">
-                Bs {formatBs(quote.totals.bs)}
+                Bs {formatBs(totals.bs)}
               </span>
             ) : (
               <span className="text-3xl font-bold text-blue-600">
-                ${formatUsd(quote.totals.usd)}
+                ${formatUsd(totals.usd)}
               </span>
             )}
           </div>

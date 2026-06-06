@@ -32,23 +32,23 @@ export async function POST(request: Request) {
     const { clientName, clientPhone, clientEmail, paymentMethod, totalUsd, totalBs, notes, items } = body;
 
     const quoteResult = await query(
-      `INSERT INTO quotes (client_name, client_phone, client_email, payment_method, total_usd, total_bs, notes)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)
-       RETURNING id, client_name, client_phone, client_email, payment_method, status, total_usd, total_bs, notes, created_at, updated_at`,
-      [clientName, clientPhone || null, clientEmail || null, paymentMethod, totalUsd || 0, totalBs || 0, notes || null]
+      `INSERT INTO quotes (client_name, client_phone, client_email, payment_method, total_usd, total_bs, notes, data)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+       RETURNING id, client_name, client_phone, client_email, payment_method, status, total_usd, total_bs, notes, data, created_at, updated_at`,
+      [clientName, clientPhone || null, clientEmail || null, paymentMethod, totalUsd || 0, totalBs || 0, notes || null, JSON.stringify(body)]
     );
 
     const quote = {
-      id: quoteResult.rows[0].id,
+      ...quoteResult.rows[0],
+      items: quoteResult.rows[0].data?.items || [],
+      rates: quoteResult.rows[0].data?.rates,
+      totals: { usd: totalUsd || 0, bs: totalBs || 0 },
       clientName: quoteResult.rows[0].client_name,
       clientPhone: quoteResult.rows[0].client_phone,
       clientEmail: quoteResult.rows[0].client_email,
-      clientRif: '',
       paymentMethod: quoteResult.rows[0].payment_method,
-      status: quoteResult.rows[0].status,
       totalUsd: parseFloat(quoteResult.rows[0].total_usd) || 0,
       totalBs: parseFloat(quoteResult.rows[0].total_bs) || 0,
-      notes: quoteResult.rows[0].notes,
       createdAt: quoteResult.rows[0].created_at,
       updatedAt: quoteResult.rows[0].updated_at,
     };
