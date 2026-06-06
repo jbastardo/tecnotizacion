@@ -172,8 +172,14 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
     const phone = clientPhone.replace(/[^0-9]/g, '');
     const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
 
-    // Open WhatsApp SYNCHRONOUSLY before any await (mobile browsers block async window.open)
-    window.open(waUrl, '_blank');
+    // Use anchor click instead of window.open - works on all mobile browsers
+    const a = document.createElement('a');
+    a.href = waUrl;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
 
     // Save quote async after opening WhatsApp
     const ok = await saveQuote('sent');

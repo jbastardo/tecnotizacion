@@ -74,7 +74,15 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
   const sendWhatsApp = () => {
     const message = buildWhatsAppMessage();
     const phone = (quote.clientPhone || '').replace(/[^0-9]/g, '');
-    window.open(`https://wa.me/${phone}?text=${encodeURIComponent(message)}`, '_blank');
+    const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+
+    const a = document.createElement('a');
+    a.href = waUrl;
+    a.target = '_blank';
+    a.rel = 'noopener noreferrer';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   };
 
   return (
