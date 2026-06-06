@@ -1,6 +1,6 @@
 'use client';
 
-import { ArrowLeft, Send, Download } from 'lucide-react';
+import { ArrowLeft, Send, Share2 } from 'lucide-react';
 import { formatBs, formatUsd } from '@/lib/pricing';
 
 interface QuoteViewProps {
@@ -16,7 +16,6 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
     divisas: 'Divisas',
   };
 
-  // Normalize items - can come from DB (items_data) or from builder (items)
   const items: any[] = quote.items || quote.items_data || [];
   const totals = quote.totals || { usd: quote.totalUsd || 0, bs: quote.totalBs || 0 };
   const rates = quote.rates || quote.rates_data || {};
@@ -26,67 +25,76 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
     ? new Date(quote.created_at).toLocaleDateString('es-VE')
     : '';
 
-  const buildWhatsAppMessage = () => {
-    let message = `*PRESUPUESTO - TECNOTIZACIÓN*\n`;
-    if (quote.quoteNumber) {
-      message += `*N° ${String(quote.quoteNumber).padStart(4, '0')}*\n`;
-    }
-    message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
-    message += `Cliente: ${quote.clientName}\n`;
-    message += `Fecha: ${createdAt}\n`;
-    message += `Forma de Pago: ${paymentMethodLabels[quote.paymentMethod] || quote.paymentMethod}\n`;
-    if (quote.paymentMethod === 'bs' && rates?.bcv) {
-      message += `Tasa BCV: Bs ${Number(rates.bcv).toFixed(2)}\n`;
+  const buildMessage = () => {
+    let msg = `*PRESUPUESTO - TECNOTIZACIÓN*\n`;
+    if (quote.quoteNumber) msg += `*N° ${String(quote.quoteNumber).padStart(4, '0')}*\n`;
+    msg += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+    msg += `Cliente: ${quote.clientName}\n`;
+    msg += `Fecha: ${createdAt}\n`;
+    msg += `Pago: ${paymentMethodLabels[quote.paymentMethod] || quote.paymentMethod}\n`;
+    if (quote.paymentMethod === 'bs' && rates?.bcv > 0) {
+      msg += `Tasa BCV: Bs ${Number(rates.bcv).toFixed(2)}\n`;
     }
 
     if (items.length > 0) {
-      message += `\n*PRODUCTOS:*\n\n`;
-      items.forEach((item: any, index: number) => {
-        const name = item.product?.name || item.productName || '';
+      msg += `\n*PRODUCTOS:*\n\n`;
+      items.forEach((item: any, i: number) => {
+        const name = item.product?.name || '';
         const qty = item.quantity || 1;
-        const pricing = item.pricing || {};
-        message += `${index + 1}. ${name}\n`;
-        message += `   Cant: ${qty}\n`;
+        const p = item.pricing || {};
+        msg += `${i + 1}. ${name}\n   Cant: ${qty}\n`;
         if (quote.paymentMethod === 'bs') {
-          const unitBs = (pricing.salePriceBs || 0) + (pricing.ivaAmount || 0);
-          const subtotalBs = pricing.totalBs || 0;
-          message += `   P/U: Bs ${formatBs(unitBs)}\n`;
-          message += `   Subtotal: Bs ${formatBs(subtotalBs)}\n`;
+          msg += `   P/U: Bs ${formatBs((p.salePriceBs || 0) + (p.ivaAmount || 0))}\n`;
+          msg += `   Subtotal: Bs ${formatBs(p.totalBs || 0)}\n\n`;
         } else {
-          message += `   P/U: $${formatUsd(pricing.salePriceUsd || 0)}\n`;
-          message += `   Subtotal: $${formatUsd(pricing.totalUsd || 0)}\n`;
+          msg += `   P/U: $${formatUsd(p.salePriceUsd || 0)}\n`;
+          msg += `   Subtotal: $${formatUsd(p.totalUsd || 0)}\n\n`;
         }
-        message += `\n`;
       });
     }
 
-    message += `━━━━━━━━━━━━━━━━━━━━\n`;
-    if (quote.paymentMethod === 'bs') {
-      message += `*TOTAL: Bs ${formatBs(totals.bs)}*\n`;
-    } else {
-      message += `*TOTAL: $${formatUsd(totals.usd)}*\n`;
-    }
-    message += `\nPresupuesto válido por 7 días.\n`;
-    message += `¡Gracias por su preferencia!`;
-    return message;
+    msg += `━━━━━━━━━━━━━━━━━━━━\n`;
+    msg += quote.paymentMethod === 'bs'
+      ? `*TOTAL: Bs ${formatBs(totals.bs)}*\n`
+      : `*TOTAL: $${formatUsd(totals.usd)}*\n`;
+    msg += `\nPresupuesto válido por 7 días.\n¡Gracias por su preferencia!`;
+    return msg;
   };
 
-  const sendWhatsApp = () => {
-    const message = buildWhatsAppMessage();
+  const openWhatsApp = () => {
+    const message = buildMessage();
     const phone = (quote.clientPhone || '').replace(/[^0-9]/g, '');
-    const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    // Use api.whatsapp.com which is more reliable on mobile for opening the app
+    const url = phone
+      ? `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`
+      : `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
+    // window.location.href triggers the app intent on mobile (not blocked)
+    window.location.href = url;
+  };
 
-    const a = document.createElement('a');
-    a.href = waUrl;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
+  const shareOrCopy = async () => {
+    const message = buildMessage();
+    // Use Web Share API on mobile if available
+    if (navigator.share) {
+      try {
+        await navigator.share({ title: `Presupuesto ${quote.clientName}`, text: message });
+        return;
+      } catch (e) {
+        // User cancelled or share failed, fall through to clipboard
+      }
+    }
+    // Fallback: copy to clipboard
+    try {
+      await navigator.clipboard.writeText(message);
+      alert('Presupuesto copiado al portapapeles');
+    } catch {
+      alert('No se pudo copiar. Usa el botón de WhatsApp.');
+    }
   };
 
   return (
     <div className="bg-white rounded-xl shadow-md overflow-hidden">
+      {/* Header */}
       <div className="bg-blue-600 text-white p-6">
         <div className="flex items-center gap-3 mb-4">
           <button onClick={onBack} className="p-2 hover:bg-blue-700 rounded-lg">
@@ -94,56 +102,51 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
           </button>
           <h2 className="text-xl font-bold">Presupuesto</h2>
         </div>
-        <div className="space-y-1 text-sm">
+        <div className="space-y-1">
           {quote.quoteNumber && (
             <p className="text-blue-200 text-xs font-mono">N° {String(quote.quoteNumber).padStart(4, '0')}</p>
           )}
           <p className="font-semibold text-2xl">{quote.clientName}</p>
-          <p className="text-blue-100">Fecha: {createdAt}</p>
-          <p className="text-blue-100">Forma de Pago: {paymentMethodLabels[quote.paymentMethod] || quote.paymentMethod}</p>
+          <p className="text-blue-100 text-sm">Fecha: {createdAt}</p>
+          <p className="text-blue-100 text-sm">
+            Pago: {paymentMethodLabels[quote.paymentMethod] || quote.paymentMethod}
+          </p>
           {quote.paymentMethod === 'bs' && rates?.bcv > 0 && (
-            <p className="text-blue-100">Tasa BCV: Bs {Number(rates.bcv).toFixed(2)}</p>
+            <p className="text-blue-100 text-sm">Tasa BCV: Bs {Number(rates.bcv).toFixed(2)}</p>
           )}
         </div>
       </div>
 
+      {/* Body */}
       <div className="p-6">
         {items.length > 0 ? (
           <>
-            <h3 className="text-lg font-semibold text-gray-800 mb-4">Detalle de Productos</h3>
+            <h3 className="text-lg font-semibold text-gray-800 mb-4">Productos</h3>
             <div className="space-y-4">
               {items.map((item: any, index: number) => {
-                const name = item.product?.name || item.productName || '';
+                const name = item.product?.name || '';
                 const qty = item.quantity || 1;
-                const pricing = item.pricing || {};
+                const p = item.pricing || {};
                 return (
-                  <div key={item.id || index} className="border-b border-gray-200 pb-4 last:border-0">
+                  <div key={item.id || index} className="border-b border-gray-100 pb-3 last:border-0">
                     <div className="flex justify-between items-start">
                       <div>
                         <h4 className="font-semibold text-gray-800">{name}</h4>
-                        <p className="text-sm text-gray-600">Cantidad: {qty}</p>
+                        <p className="text-sm text-gray-500">Cantidad: {qty}</p>
                       </div>
                       <div className="text-right">
                         {quote.paymentMethod === 'bs' ? (
                           <>
-                            <p className="text-sm text-gray-600">
-                              P/U: Bs {formatBs((pricing.salePriceBs || 0) + (pricing.ivaAmount || 0))}
+                            <p className="text-sm text-gray-500">
+                              P/U: Bs {formatBs((p.salePriceBs || 0) + (p.ivaAmount || 0))}
                             </p>
-                            <p className="text-xs text-gray-500">
-                              (Bs {formatBs(pricing.salePriceBs || 0)} + IVA 16%)
-                            </p>
-                            <p className="font-bold text-blue-600">
-                              Bs {formatBs(pricing.totalBs || 0)}
-                            </p>
+                            <p className="text-xs text-gray-400">(+IVA 16%)</p>
+                            <p className="font-bold text-blue-600">Bs {formatBs(p.totalBs || 0)}</p>
                           </>
                         ) : (
                           <>
-                            <p className="text-sm text-gray-600">
-                              P/U: ${formatUsd(pricing.salePriceUsd || 0)}
-                            </p>
-                            <p className="font-bold text-blue-600">
-                              ${formatUsd(pricing.totalUsd || 0)}
-                            </p>
+                            <p className="text-sm text-gray-500">P/U: ${formatUsd(p.salePriceUsd || 0)}</p>
+                            <p className="font-bold text-blue-600">${formatUsd(p.totalUsd || 0)}</p>
                           </>
                         )}
                       </div>
@@ -154,45 +157,43 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
             </div>
           </>
         ) : (
-          <p className="text-gray-500 text-sm mb-4">Sin detalle de productos</p>
+          <p className="text-gray-400 text-sm mb-4">Sin detalle de productos</p>
         )}
 
-        <div className="mt-6 pt-4 border-t-2 border-gray-300">
+        {/* Total */}
+        <div className="mt-6 pt-4 border-t-2 border-gray-200">
           <div className="flex justify-between items-center">
             <span className="text-xl font-bold text-gray-800">TOTAL:</span>
-            {quote.paymentMethod === 'bs' ? (
-              <span className="text-3xl font-bold text-blue-600">
-                Bs {formatBs(totals.bs)}
-              </span>
-            ) : (
-              <span className="text-3xl font-bold text-blue-600">
-                ${formatUsd(totals.usd)}
-              </span>
-            )}
+            <span className="text-3xl font-bold text-blue-600">
+              {quote.paymentMethod === 'bs'
+                ? `Bs ${formatBs(totals.bs)}`
+                : `$${formatUsd(totals.usd)}`}
+            </span>
           </div>
-          <p className="text-sm text-gray-500 mt-2 text-center">Presupuesto válido por 7 días</p>
+          <p className="text-sm text-gray-400 mt-2 text-center">Válido por 7 días</p>
         </div>
 
+        {/* Actions */}
         <div className="mt-6 space-y-3">
           <button
-            onClick={sendWhatsApp}
-            className="w-full bg-green-500 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2"
+            onClick={openWhatsApp}
+            className="w-full bg-green-500 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-600 active:bg-green-700 transition-colors flex items-center justify-center gap-2"
           >
             <Send className="w-6 h-6" />
             Enviar por WhatsApp
           </button>
           <button
-            onClick={() => window.print()}
-            className="w-full bg-gray-100 text-gray-800 py-3 rounded-lg font-semibold hover:bg-gray-200 transition-colors flex items-center justify-center gap-2"
+            onClick={shareOrCopy}
+            className="w-full bg-gray-100 text-gray-800 py-3 rounded-lg font-semibold hover:bg-gray-200 active:bg-gray-300 transition-colors flex items-center justify-center gap-2"
           >
-            <Download className="w-5 h-5" />
-            Imprimir / PDF
+            <Share2 className="w-5 h-5" />
+            Compartir / Copiar
           </button>
         </div>
       </div>
 
-      <div className="bg-gray-50 px-6 py-4 text-center text-sm text-gray-500">
-        <p>Tecnotización - Presupuestos Profesionales</p>
+      <div className="bg-gray-50 px-6 py-3 text-center text-xs text-gray-400">
+        Tecnotización — Presupuestos Profesionales
       </div>
     </div>
   );

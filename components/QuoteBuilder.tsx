@@ -139,7 +139,6 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
     if (!clientName) { alert('Ingresa el nombre del cliente'); return; }
     if (items.length === 0) { alert('Agrega al menos un producto'); return; }
 
-    // Build message FIRST (sync) so window.open is not blocked on mobile
     let message = `*PRESUPUESTO - TECNOTIZACIÓN*\n`;
     message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
     message += `Cliente: ${clientName}\n`;
@@ -170,20 +169,17 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
     message += `\nPresupuesto válido por 7 días.\n¡Gracias por su preferencia!`;
 
     const phone = clientPhone.replace(/[^0-9]/g, '');
-    const waUrl = `https://wa.me/${phone}?text=${encodeURIComponent(message)}`;
+    const waUrl = phone
+      ? `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`
+      : `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
 
-    // Use anchor click instead of window.open - works on all mobile browsers
-    const a = document.createElement('a');
-    a.href = waUrl;
-    a.target = '_blank';
-    a.rel = 'noopener noreferrer';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-
-    // Save quote async after opening WhatsApp
+    // Save first, then redirect to WhatsApp
     const ok = await saveQuote('sent');
-    if (ok) onSaved();
+
+    // Use location.href for reliable app launch on mobile (no popup blocker issues)
+    window.location.href = waUrl;
+
+    if (ok) setTimeout(() => onSaved(), 1000);
   };
 
   return (
