@@ -1,14 +1,15 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, FileText, Settings, Package, Users } from 'lucide-react';
+import { Plus, FileText, Settings, Package, Users, ClipboardList } from 'lucide-react';
 import ProductForm from '@/components/ProductForm';
 import ProductList from '@/components/ProductList';
 import ClientManager from '@/components/ClientManager';
 import QuoteBuilder from '@/components/QuoteBuilder';
 import QuoteView from '@/components/QuoteView';
+import QuoteHistory from '@/components/QuoteHistory';
 
-type View = 'home' | 'products' | 'productList' | 'clients' | 'builder' | 'quote';
+type View = 'home' | 'products' | 'productList' | 'clients' | 'builder' | 'quote' | 'history' | 'viewQuote';
 
 export default function Home() {
   const [currentView, setCurrentView] = useState<View>('home');
@@ -16,6 +17,7 @@ export default function Home() {
   const [clients, setClients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentQuote, setCurrentQuote] = useState<any>(null);
+  const [viewingQuote, setViewingQuote] = useState<any>(null);
 
   const fetchProducts = useCallback(() => {
     fetch('/api/products')
@@ -49,6 +51,11 @@ export default function Home() {
     setCurrentView('quote');
   };
 
+  const handleViewQuote = (quote: any) => {
+    setViewingQuote(quote);
+    setCurrentView('viewQuote');
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-blue-600 text-white p-4 shadow-lg">
@@ -77,11 +84,11 @@ export default function Home() {
                 <span className="font-semibold text-gray-800">Presupuesto</span>
               </button>
               <button
-                onClick={() => setCurrentView('productList')}
+                onClick={() => setCurrentView('history')}
                 className="bg-white p-6 rounded-xl shadow-md hover:shadow-lg transition-shadow flex flex-col items-center gap-3"
               >
-                <Package className="w-10 h-10 text-purple-600" />
-                <span className="font-semibold text-gray-800">Mis Productos</span>
+                <ClipboardList className="w-10 h-10 text-indigo-600" />
+                <span className="font-semibold text-gray-800">Presupuestos</span>
               </button>
               <button
                 onClick={() => setCurrentView('clients')}
@@ -96,6 +103,7 @@ export default function Home() {
               <h2 className="text-lg font-semibold text-gray-800 mb-4">Resumen</h2>
               <div className="space-y-2 text-sm text-gray-600">
                 <p>Productos registrados: {loading ? 'Cargando...' : products.length}</p>
+                <p>Clientes registrados: {clients.length}</p>
               </div>
             </div>
 
@@ -109,10 +117,7 @@ export default function Home() {
                         <p className="font-medium text-gray-800">{p.name}</p>
                         {p.category && <p className="text-xs text-gray-500">{p.category}</p>}
                       </div>
-                      <div className="text-right">
-                        <p className="text-sm font-semibold text-blue-600">${p.costUsd.toFixed(2)}</p>
-                        <p className="text-xs text-green-600">+{p.profitMargin}% util.</p>
-                      </div>
+                      <p className="text-sm font-semibold text-blue-600">${p.costUsd.toFixed(2)}</p>
                     </div>
                   ))}
                 </div>
@@ -133,6 +138,10 @@ export default function Home() {
           <ClientManager onBack={() => setCurrentView('home')} />
         )}
 
+        {currentView === 'history' && (
+          <QuoteHistory onBack={() => setCurrentView('home')} onViewQuote={handleViewQuote} />
+        )}
+
         {currentView === 'builder' && (
           <QuoteBuilder
             products={products}
@@ -143,6 +152,10 @@ export default function Home() {
 
         {currentView === 'quote' && currentQuote && (
           <QuoteView quote={currentQuote} onBack={() => setCurrentView('home')} />
+        )}
+
+        {currentView === 'viewQuote' && viewingQuote && (
+          <QuoteView quote={viewingQuote} onBack={() => setCurrentView('history')} />
         )}
       </main>
 
@@ -160,13 +173,13 @@ export default function Home() {
             <span className="text-xs">Inicio</span>
           </button>
           <button
-            onClick={() => setCurrentView('productList')}
+            onClick={() => setCurrentView('history')}
             className={`flex flex-col items-center gap-1 ${
-              currentView === 'productList' ? 'text-blue-600' : 'text-gray-500'
+              currentView === 'history' ? 'text-blue-600' : 'text-gray-500'
             }`}
           >
-            <Package className="w-6 h-6" />
-            <span className="text-xs">Productos</span>
+            <ClipboardList className="w-6 h-6" />
+            <span className="text-xs">Presupuestos</span>
           </button>
           <button
             onClick={() => setCurrentView('builder')}

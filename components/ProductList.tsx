@@ -151,7 +151,7 @@ export default function ProductList({ onBack }: ProductListProps) {
                     <h3 className="font-semibold text-gray-800">{p.name}</h3>
                     {p.category && <p className="text-xs text-gray-500">{p.category}</p>}
                     <p className="text-sm text-gray-600 mt-1">
-                      Costo: ${p.costUsd.toFixed(2)} · Margen: {p.profitMargin}%
+                      Costo: ${p.costUsd.toFixed(2)}
                     </p>
                   </div>
                   <div className="flex gap-2">

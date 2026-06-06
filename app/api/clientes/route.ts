@@ -4,6 +4,7 @@ import { query } from '@/lib/db';
 function mapClient(row: any) {
   return {
     id: row.id,
+    rif: row.rif,
     name: row.name,
     phone: row.phone,
     email: row.email,
@@ -14,7 +15,7 @@ function mapClient(row: any) {
 export async function GET() {
   try {
     const result = await query(
-      'SELECT id, name, phone, email, created_at FROM clients ORDER BY name ASC'
+      'SELECT id, rif, name, phone, email, created_at FROM clients ORDER BY name ASC'
     );
     return NextResponse.json(result.rows.map(mapClient));
   } catch (error) {
@@ -26,22 +27,22 @@ export async function GET() {
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const { name, phone, email } = body;
+    const { rif, name, phone, email } = body;
 
-    const existing = await query('SELECT id FROM clients WHERE phone = $1 AND phone IS NOT NULL', [phone || '']);
-    if (existing.rows.length > 0 && phone) {
+    const existing = await query('SELECT id FROM clients WHERE rif = $1', [rif]);
+    if (existing.rows.length > 0) {
       const result = await query(
-        'UPDATE clients SET name = $1, email = $2 WHERE phone = $3 RETURNING id, name, phone, email, created_at',
-        [name, email || null, phone]
+        'UPDATE clients SET name = $1, phone = $2, email = $3 WHERE rif = $4 RETURNING id, rif, name, phone, email, created_at',
+        [name, phone || null, email || null, rif]
       );
       return NextResponse.json(mapClient(result.rows[0]));
     }
 
     const result = await query(
-      `INSERT INTO clients (name, phone, email)
-       VALUES ($1, $2, $3)
-       RETURNING id, name, phone, email, created_at`,
-      [name, phone || null, email || null]
+      `INSERT INTO clients (rif, name, phone, email)
+       VALUES ($1, $2, $3, $4)
+       RETURNING id, rif, name, phone, email, created_at`,
+      [rif, name, phone || null, email || null]
     );
 
     return NextResponse.json(mapClient(result.rows[0]), { status: 201 });
@@ -54,12 +55,12 @@ export async function POST(request: Request) {
 export async function PUT(request: Request) {
   try {
     const body = await request.json();
-    const { id, name, phone, email } = body;
+    const { id, rif, name, phone, email } = body;
 
     const result = await query(
-      `UPDATE clients SET name = $1, phone = $2, email = $3 WHERE id = $4
-       RETURNING id, name, phone, email, created_at`,
-      [name, phone || null, email || null, id]
+      `UPDATE clients SET rif = $1, name = $2, phone = $3, email = $4 WHERE id = $5
+       RETURNING id, rif, name, phone, email, created_at`,
+      [rif, name, phone || null, email || null, id]
     );
 
     if (result.rows.length === 0) {

@@ -13,7 +13,7 @@ export default function ClientManager({ onBack }: ClientManagerProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<any>({});
   const [showAdd, setShowAdd] = useState(false);
-  const [newClient, setNewClient] = useState({ name: '', phone: '', email: '' });
+  const [newClient, setNewClient] = useState({ rif: '', name: '', phone: '', email: '' });
 
   useEffect(() => {
     fetchClients();
@@ -30,7 +30,7 @@ export default function ClientManager({ onBack }: ClientManagerProps) {
   };
 
   const addClient = async () => {
-    if (!newClient.name) return;
+    if (!newClient.rif || !newClient.name) return;
 
     try {
       const res = await fetch('/api/clientes', {
@@ -40,7 +40,7 @@ export default function ClientManager({ onBack }: ClientManagerProps) {
       });
 
       if (res.ok) {
-        setNewClient({ name: '', phone: '', email: '' });
+        setNewClient({ rif: '', name: '', phone: '', email: '' });
         setShowAdd(false);
         fetchClients();
       } else {
@@ -55,7 +55,7 @@ export default function ClientManager({ onBack }: ClientManagerProps) {
 
   const startEdit = (client: any) => {
     setEditingId(client.id);
-    setEditForm({ name: client.name, phone: client.phone || '', email: client.email || '' });
+    setEditForm({ rif: client.rif, name: client.name, phone: client.phone || '', email: client.email || '' });
   };
 
   const cancelEdit = () => {
@@ -123,6 +123,13 @@ export default function ClientManager({ onBack }: ClientManagerProps) {
         <div className="mb-4 p-4 bg-blue-50 rounded-lg space-y-3">
           <input
             type="text"
+            value={newClient.rif}
+            onChange={(e) => setNewClient({ ...newClient, rif: e.target.value })}
+            className="w-full px-3 py-2 border rounded-lg"
+            placeholder="RIF *"
+          />
+          <input
+            type="text"
             value={newClient.name}
             onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
             className="w-full px-3 py-2 border rounded-lg"
@@ -165,6 +172,13 @@ export default function ClientManager({ onBack }: ClientManagerProps) {
                 <div className="space-y-3">
                   <input
                     type="text"
+                    value={editForm.rif}
+                    onChange={(e) => setEditForm({ ...editForm, rif: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg"
+                    placeholder="RIF"
+                  />
+                  <input
+                    type="text"
                     value={editForm.name}
                     onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                     className="w-full px-3 py-2 border rounded-lg"
@@ -199,6 +213,7 @@ export default function ClientManager({ onBack }: ClientManagerProps) {
                 <div className="flex justify-between items-center">
                   <div>
                     <h3 className="font-semibold text-gray-800">{c.name}</h3>
+                    <p className="text-sm text-gray-500">RIF: {c.rif}</p>
                     <p className="text-sm text-gray-500">{c.phone || 'Sin teléfono'} · {c.email || 'Sin email'}</p>
                   </div>
                   <div className="flex gap-2">

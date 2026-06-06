@@ -40,6 +40,7 @@ CREATE TABLE IF NOT EXISTS products (
 CREATE TABLE IF NOT EXISTS clients (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID REFERENCES tenants(id) ON DELETE CASCADE,
+  rif VARCHAR(20) NOT NULL,
   name VARCHAR(255) NOT NULL,
   phone VARCHAR(50),
   email VARCHAR(255),

@@ -267,7 +267,7 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated }: Quot
             <option value="">Seleccionar producto...</option>
             {products.map((p) => (
               <option key={p.id} value={p.id}>
-                {p.name} - Costo: ${formatUsd(p.costUsd)} | Utilidad: {p.profitMargin || 45}%
+                {p.name} - ${formatUsd(p.costUsd)}
               </option>
             ))}
           </select>
@@ -303,7 +303,6 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated }: Quot
                   <div className="flex-1">
                     <h4 className="font-semibold text-gray-800">{item.product.name}</h4>
                     <p className="text-sm text-gray-600">Cantidad: {item.quantity}</p>
-                    <p className="text-xs text-gray-500">Margen: {item.product.profitMargin || 45}%</p>
                     {paymentMethod === 'bs' ? (
                       <div className="mt-1 space-y-1">
                         <p className="text-sm text-gray-600">
