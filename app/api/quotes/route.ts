@@ -4,6 +4,7 @@ import { query } from '@/lib/db';
 function mapRow(row: any) {
   return {
     id: row.id,
+    quoteNumber: row.quote_number,
     clientName: row.client_name,
     clientPhone: row.client_phone,
     clientEmail: row.client_email,
@@ -22,9 +23,9 @@ function mapRow(row: any) {
 export async function GET() {
   try {
     const result = await query(
-      `SELECT id, client_name, client_phone, client_email, payment_method,
+      `SELECT id, quote_number, client_name, client_phone, client_email, payment_method,
        status, total_usd, total_bs, notes, items_data, rates_data, created_at, updated_at
-       FROM quotes ORDER BY created_at DESC`
+       FROM quotes ORDER BY quote_number DESC`
     );
     return NextResponse.json(result.rows.map(mapRow));
   } catch (error) {
@@ -41,7 +42,7 @@ export async function POST(request: Request) {
     const result = await query(
       `INSERT INTO quotes (client_name, client_phone, client_email, payment_method, total_usd, total_bs, notes, items_data, rates_data)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-       RETURNING id, client_name, client_phone, client_email, payment_method, status, total_usd, total_bs, notes, items_data, rates_data, created_at, updated_at`,
+       RETURNING id, quote_number, client_name, client_phone, client_email, payment_method, status, total_usd, total_bs, notes, items_data, rates_data, created_at, updated_at`,
       [
         clientName,
         clientPhone || null,
@@ -69,7 +70,7 @@ export async function PUT(request: Request) {
 
     const result = await query(
       `UPDATE quotes SET status = $1, updated_at = NOW() WHERE id = $2
-       RETURNING id, client_name, client_phone, client_email, payment_method, status, total_usd, total_bs, notes, items_data, rates_data, created_at, updated_at`,
+       RETURNING id, quote_number, client_name, client_phone, client_email, payment_method, status, total_usd, total_bs, notes, items_data, rates_data, created_at, updated_at`,
       [status, id]
     );
 

@@ -121,6 +121,7 @@ export default function QuoteHistory({ onBack, onViewQuote }: QuoteHistoryProps)
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <div className="flex items-center gap-2 mb-1">
+                      <span className="text-xs font-bold text-gray-400">#{String(q.quoteNumber || '?').padStart(4, '0')}</span>
                       <h3 className="font-semibold text-gray-800">{q.clientName}</h3>
                       <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[q.status]}`}>
                         <StatusIcon className="w-3 h-3 inline mr-1" />

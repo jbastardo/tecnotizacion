@@ -28,6 +28,9 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
 
   const buildWhatsAppMessage = () => {
     let message = `*PRESUPUESTO - TECNOTIZACIÓN*\n`;
+    if (quote.quoteNumber) {
+      message += `*N° ${String(quote.quoteNumber).padStart(4, '0')}*\n`;
+    }
     message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
     message += `Cliente: ${quote.clientName}\n`;
     message += `Fecha: ${createdAt}\n`;
@@ -84,6 +87,9 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
           <h2 className="text-xl font-bold">Presupuesto</h2>
         </div>
         <div className="space-y-1 text-sm">
+          {quote.quoteNumber && (
+            <p className="text-blue-200 text-xs font-mono">N° {String(quote.quoteNumber).padStart(4, '0')}</p>
+          )}
           <p className="font-semibold text-2xl">{quote.clientName}</p>
           <p className="text-blue-100">Fecha: {createdAt}</p>
           <p className="text-blue-100">Forma de Pago: {paymentMethodLabels[quote.paymentMethod] || quote.paymentMethod}</p>
