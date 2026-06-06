@@ -19,10 +19,8 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated }: Quot
   const [selectedProduct, setSelectedProduct] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [rates, setRates] = useState({ bcv: 0, promedio: 0 });
-  const [manualBcv, setManualBcv] = useState('');
-  const [manualPromedio, setManualPromedio] = useState('');
-  const [needsManual, setNeedsManual] = useState(false);
   const [loadingRates, setLoadingRates] = useState(true);
+  const [ratesError, setRatesError] = useState(false);
 
   useEffect(() => {
     fetch('/api/tasas')
@@ -30,20 +28,20 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated }: Quot
       .then((data) => {
         if (data.bcv > 0 && data.promedio > 0) {
           setRates(data);
-          setNeedsManual(false);
+          setLoadingRates(false);
         } else {
-          setNeedsManual(true);
+          setRatesError(true);
+          setLoadingRates(false);
         }
-        setLoadingRates(false);
       })
       .catch(() => {
-        setNeedsManual(true);
+        setRatesError(true);
         setLoadingRates(false);
       });
   }, []);
 
-  const activeBcv = manualBcv ? parseFloat(manualBcv) : rates.bcv;
-  const activePromedio = manualPromedio ? parseFloat(manualPromedio) : rates.promedio;
+  const activeBcv = rates.bcv;
+  const activePromedio = rates.promedio;
 
   useEffect(() => {
     if (selectedClientId) {
@@ -241,40 +239,17 @@ export default function QuoteBuilder({ products, clients, onQuoteCreated }: Quot
           </div>
 
           {loadingRates ? (
-            <p className="text-sm text-gray-500">Cargando tasas...</p>
-          ) : needsManual || activeBcv === 0 ? (
-            <div className="bg-amber-50 p-3 rounded-lg text-sm space-y-2">
-              <p className="font-medium text-amber-800">Ingresa tasas manualmente:</p>
-              <div className="grid grid-cols-2 gap-2">
-                <div>
-                  <label className="text-xs text-amber-700">BCV (venta)</label>
-                  <input
-                    type="number"
-                    value={manualBcv}
-                    onChange={(e) => setManualBcv(e.target.value)}
-                    className="w-full px-3 py-2 border border-amber-300 rounded text-sm"
-                    placeholder="Ej: 85.50"
-                    step="0.01"
-                  />
-                </div>
-                <div>
-                  <label className="text-xs text-amber-700">Promedio (compra)</label>
-                  <input
-                    type="number"
-                    value={manualPromedio}
-                    onChange={(e) => setManualPromedio(e.target.value)}
-                    className="w-full px-3 py-2 border border-amber-300 rounded text-sm"
-                    placeholder="Ej: 89.20"
-                    step="0.01"
-                  />
-                </div>
-              </div>
+            <p className="text-sm text-gray-500">Cargando tasas del día...</p>
+          ) : ratesError || activeBcv === 0 ? (
+            <div className="bg-red-50 p-3 rounded-lg text-sm">
+              <p className="font-medium text-red-800">No se pudieron cargar las tasas. Reintentando...</p>
             </div>
           ) : (
             <div className="bg-blue-50 p-3 rounded-lg text-sm">
-              <p className="font-medium">Tasas actuales:</p>
+              <p className="font-medium">Tasas del día:</p>
               <p>BCV (venta): Bs {rates.bcv.toFixed(2)}</p>
               <p>Promedio (compra): Bs {rates.promedio.toFixed(2)}</p>
+              <p className="text-xs text-gray-500 mt-1">Actualizadas: {new Date(rates.lastUpdated).toLocaleString('es-VE')}</p>
             </div>
           )}
         </div>
