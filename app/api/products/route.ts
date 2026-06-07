@@ -21,15 +21,15 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
   const tryQuery = async (sql: string) => {
-    try {
-      return await query(sql, [session.tenantId]);
-    } catch (e) {
-      return null;
-    }
+    try { return await query(sql, [session.tenantId]); } catch { return null; }
   };
 
+  // Try all column combinations, preferring ones with sku and image_url
   let result = await tryQuery(
     'SELECT id, sku, name, description, cost_usd, profit_margin, category, image_url, created_at FROM products WHERE tenant_id = $1 OR tenant_id IS NULL ORDER BY created_at DESC'
+  );
+  if (!result) result = await tryQuery(
+    'SELECT id, sku, name, description, cost_usd, profit_margin, category, created_at FROM products WHERE tenant_id = $1 OR tenant_id IS NULL ORDER BY created_at DESC'
   );
   if (!result) result = await tryQuery(
     'SELECT id, name, description, cost_usd, profit_margin, category, image_url, created_at FROM products WHERE tenant_id = $1 OR tenant_id IS NULL ORDER BY created_at DESC'
