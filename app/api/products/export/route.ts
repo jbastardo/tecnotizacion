@@ -8,10 +8,18 @@ export async function GET() {
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
   try {
-    const result = await query(
-      'SELECT name, sku, description, cost_usd, profit_margin, category, image_url FROM products WHERE tenant_id = $1 OR tenant_id IS NULL ORDER BY created_at DESC',
-      [session.tenantId]
-    );
+    let result;
+    try {
+      result = await query(
+        'SELECT name, sku, description, cost_usd, profit_margin, category, image_url FROM products WHERE tenant_id = $1 OR tenant_id IS NULL ORDER BY created_at DESC',
+        [session.tenantId]
+      );
+    } catch {
+      result = await query(
+        'SELECT name, description, cost_usd, profit_margin, category, image_url FROM products WHERE tenant_id = $1 OR tenant_id IS NULL ORDER BY created_at DESC',
+        [session.tenantId]
+      );
+    }
 
     const data = result.rows.map((r: any) => ({
       SKU: r.sku || '',

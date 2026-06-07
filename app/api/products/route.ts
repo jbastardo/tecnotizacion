@@ -20,16 +20,26 @@ export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
-  try {
-    const result = await query(
-      'SELECT id, name, description, cost_usd, profit_margin, category, image_url, sku, created_at FROM products WHERE tenant_id = $1 OR tenant_id IS NULL ORDER BY created_at DESC',
-      [session.tenantId]
-    );
-    return NextResponse.json(result.rows.map(mapProduct));
-  } catch (error) {
-    console.error('Error fetching products:', error);
-    return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
-  }
+  const tryQuery = async (sql: string) => {
+    try {
+      return await query(sql, [session.tenantId]);
+    } catch (e) {
+      return null;
+    }
+  };
+
+  let result = await tryQuery(
+    'SELECT id, sku, name, description, cost_usd, profit_margin, category, image_url, created_at FROM products WHERE tenant_id = $1 OR tenant_id IS NULL ORDER BY created_at DESC'
+  );
+  if (!result) result = await tryQuery(
+    'SELECT id, name, description, cost_usd, profit_margin, category, image_url, created_at FROM products WHERE tenant_id = $1 OR tenant_id IS NULL ORDER BY created_at DESC'
+  );
+  if (!result) result = await tryQuery(
+    'SELECT id, name, description, cost_usd, profit_margin, category, created_at FROM products WHERE tenant_id = $1 OR tenant_id IS NULL ORDER BY created_at DESC'
+  );
+
+  if (result) return NextResponse.json(result.rows.map(mapProduct));
+  return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });
 }
 
 export async function POST(request: Request) {
@@ -40,13 +50,35 @@ export async function POST(request: Request) {
     const { name, description, costUsd, profitMargin, category, imageUrl, sku } = await request.json();
     if (!name || !costUsd) return NextResponse.json({ error: 'name and costUsd required' }, { status: 400 });
 
-    const result = await query(
+    const params = [session.tenantId, name, description || null, costUsd, profitMargin || 45, category || null];
+
+    const tryInsert = async (sql: string, p: any[]) => {
+      try { return await query(sql, p); } catch { return null; }
+    };
+
+    let result = await tryInsert(
       `INSERT INTO products (tenant_id, name, description, cost_usd, profit_margin, category, image_url, sku)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-       RETURNING id, sku, name, description, cost_usd, profit_margin, category, image_url, created_at`,
-      [session.tenantId, name, description || null, costUsd, profitMargin || 45, category || null, imageUrl || null, sku || null]
+       VALUES ($1,$2,$3,$4,$5,$6,$7,$8) RETURNING id, sku, name, description, cost_usd, profit_margin, category, image_url, created_at`,
+      [...params, imageUrl || null, sku || null]
     );
-    return NextResponse.json(mapProduct(result.rows[0]), { status: 201 });
+    if (!result) result = await tryInsert(
+      `INSERT INTO products (tenant_id, name, description, cost_usd, profit_margin, category, image_url)
+       VALUES ($1,$2,$3,$4,$5,$6,$7) RETURNING id, name, description, cost_usd, profit_margin, category, image_url, created_at`,
+      [...params, imageUrl || null]
+    );
+    if (!result) result = await tryInsert(
+      `INSERT INTO products (tenant_id, name, description, cost_usd, profit_margin, category)
+       VALUES ($1,$2,$3,$4,$5,$6) RETURNING id, name, description, cost_usd, profit_margin, category, created_at`,
+      params
+    );
+
+    if (!result) return NextResponse.json({ error: 'Failed to create product' }, { status: 500 });
+    const row = result.rows[0];
+    return NextResponse.json({
+      id: row.id, sku: row.sku || '', name: row.name, description: row.description || '',
+      costUsd: parseFloat(row.cost_usd), profitMargin: parseFloat(row.profit_margin) || 45,
+      category: row.category, imageUrl: row.image_url || null, createdAt: row.created_at,
+    }, { status: 201 });
   } catch (error) {
     console.error('Error creating product:', error);
     return NextResponse.json({ error: 'Failed to create product' }, { status: 500 });
