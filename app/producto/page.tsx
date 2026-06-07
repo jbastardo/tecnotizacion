@@ -38,13 +38,13 @@ export default function ProductShowcase() {
   return (
     <div className="min-h-screen bg-gray-100">
       <div className="max-w-lg mx-auto">
-        <div className="flex items-center gap-3 p-4 bg-white border-b">
-          <button onClick={() => window.history.back()} className="p-2 hover:bg-gray-100 rounded-lg">
-            <svg className="w-6 h-6 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+        <div className="flex items-center justify-between p-4 bg-white border-b">
+          <a href="/" className="flex items-center gap-2 p-2 hover:bg-gray-100 rounded-lg">
+            <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
             </svg>
-          </button>
-          <span className="text-sm text-gray-500">Volver</span>
+            <span className="text-sm font-medium text-blue-600">Tecnotización</span>
+          </a>
         </div>
 
         {product.imageUrl && (
