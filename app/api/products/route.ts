@@ -10,6 +10,7 @@ function mapProduct(row: any) {
     costUsd: parseFloat(row.cost_usd),
     profitMargin: parseFloat(row.profit_margin) || 45,
     category: row.category,
+    imageUrl: row.image_url || null,
     createdAt: row.created_at,
   };
 }
@@ -20,7 +21,7 @@ export async function GET() {
 
   try {
     const result = await query(
-      'SELECT id, name, description, cost_usd, profit_margin, category, created_at FROM products WHERE tenant_id = $1 ORDER BY created_at DESC',
+      'SELECT id, name, description, cost_usd, profit_margin, category, image_url, created_at FROM products WHERE tenant_id = $1 ORDER BY created_at DESC',
       [session.tenantId]
     );
     return NextResponse.json(result.rows.map(mapProduct));
@@ -35,14 +36,14 @@ export async function POST(request: Request) {
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
   try {
-    const { name, description, costUsd, profitMargin, category } = await request.json();
+    const { name, description, costUsd, profitMargin, category, imageUrl } = await request.json();
     if (!name || !costUsd) return NextResponse.json({ error: 'name and costUsd required' }, { status: 400 });
 
     const result = await query(
-      `INSERT INTO products (tenant_id, name, description, cost_usd, profit_margin, category)
-       VALUES ($1, $2, $3, $4, $5, $6)
-       RETURNING id, name, description, cost_usd, profit_margin, category, created_at`,
-      [session.tenantId, name, description || null, costUsd, profitMargin || 45, category || null]
+      `INSERT INTO products (tenant_id, name, description, cost_usd, profit_margin, category, image_url)
+       VALUES ($1, $2, $3, $4, $5, $6, $7)
+       RETURNING id, name, description, cost_usd, profit_margin, category, image_url, created_at`,
+      [session.tenantId, name, description || null, costUsd, profitMargin || 45, category || null, imageUrl || null]
     );
     return NextResponse.json(mapProduct(result.rows[0]), { status: 201 });
   } catch (error) {
@@ -56,14 +57,14 @@ export async function PUT(request: Request) {
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
   try {
-    const { id, name, description, costUsd, profitMargin, category } = await request.json();
+    const { id, name, description, costUsd, profitMargin, category, imageUrl } = await request.json();
     if (!id || !name) return NextResponse.json({ error: 'id and name required' }, { status: 400 });
 
     const result = await query(
-      `UPDATE products SET name = $1, description = $2, cost_usd = $3, profit_margin = $4, category = $5
-       WHERE id = $6 AND tenant_id = $7
-       RETURNING id, name, description, cost_usd, profit_margin, category, created_at`,
-      [name, description || null, costUsd, profitMargin || 45, category || null, id, session.tenantId]
+      `UPDATE products SET name = $1, description = $2, cost_usd = $3, profit_margin = $4, category = $5, image_url = $6
+       WHERE id = $7 AND tenant_id = $8
+       RETURNING id, name, description, cost_usd, profit_margin, category, image_url, created_at`,
+      [name, description || null, costUsd, profitMargin || 45, category || null, imageUrl || null, id, session.tenantId]
     );
     if (result.rows.length === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json(mapProduct(result.rows[0]));

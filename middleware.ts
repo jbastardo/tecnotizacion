@@ -8,6 +8,8 @@ const PUBLIC = [
   '/api/health',
   '/api/tasas',
   '/api/icon',
+  '/api/producto-publico',
+  '/producto',
   '/manifest.json',
   '/sw.js',
   '/icons/',

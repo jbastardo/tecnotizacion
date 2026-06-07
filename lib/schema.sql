@@ -41,6 +41,7 @@ CREATE TABLE IF NOT EXISTS products (
   cost_usd DECIMAL(10,2) NOT NULL,
   profit_margin DECIMAL(5,2) DEFAULT 45.00,
   category VARCHAR(100),
+  image_url TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
