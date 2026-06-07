@@ -60,9 +60,6 @@ export default function ProductShowcase() {
                 USD
               </span>
             </div>
-            <p className="text-sm text-gray-500">
-              Precio de venta sugerido (incluye margen del {product.profitMargin}%)
-            </p>
           </div>
 
           {product.description && (
