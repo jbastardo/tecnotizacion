@@ -111,7 +111,6 @@ export default function ProductForm({ onProductAdded, onBack }: ProductFormProps
           <div className="bg-green-50 p-3 rounded-lg text-sm border border-green-200">
             <p className="text-green-800 font-medium">Vista previa de precio de venta:</p>
             <p className="text-green-700 text-lg font-bold">${salePrice.toFixed(2)} USD</p>
-            <p className="text-green-600 text-xs">Utilidad: ${(salePrice - parseFloat(costUsd || '0')).toFixed(2)} ({profitMargin}% del precio de venta)</p>
           </div>
         )}
 
