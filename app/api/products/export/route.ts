@@ -9,11 +9,12 @@ export async function GET() {
 
   try {
     const result = await query(
-      'SELECT name, description, cost_usd, profit_margin, category, image_url FROM products WHERE tenant_id = $1 ORDER BY created_at DESC',
+      'SELECT name, sku, description, cost_usd, profit_margin, category, image_url FROM products WHERE tenant_id = $1 OR tenant_id IS NULL ORDER BY created_at DESC',
       [session.tenantId]
     );
 
     const data = result.rows.map((r: any) => ({
+      SKU: r.sku || '',
       Nombre: r.name,
       Descripción: r.description || '',
       'Costo USD': parseFloat(r.cost_usd),
@@ -24,7 +25,7 @@ export async function GET() {
 
     const ws = XLSX.utils.json_to_sheet(data);
     ws['!cols'] = [
-      { wch: 30 }, { wch: 40 }, { wch: 12 }, { wch: 10 }, { wch: 20 }, { wch: 50 },
+      { wch: 15 }, { wch: 30 }, { wch: 40 }, { wch: 12 }, { wch: 10 }, { wch: 20 }, { wch: 50 },
     ];
 
     const wb = XLSX.utils.book_new();

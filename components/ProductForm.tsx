@@ -10,6 +10,7 @@ interface ProductFormProps {
 
 export default function ProductForm({ onProductAdded, onBack }: ProductFormProps) {
   const [name, setName] = useState('');
+  const [sku, setSku] = useState('');
   const [description, setDescription] = useState('');
   const [costUsd, setCostUsd] = useState('');
   const [profitMargin, setProfitMargin] = useState('45');
@@ -33,7 +34,7 @@ export default function ProductForm({ onProductAdded, onBack }: ProductFormProps
       const res = await fetch('/api/products', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, description, costUsd: cost, profitMargin: margin, category }),
+        body: JSON.stringify({ name, sku, description, costUsd: cost, profitMargin: margin, category }),
       });
 
       if (res.ok) {
@@ -68,6 +69,13 @@ export default function ProductForm({ onProductAdded, onBack }: ProductFormProps
           <input type="text" value={name} onChange={(e) => setName(e.target.value)}
             className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             placeholder="Ej: Laptop HP 15" required />
+        </div>
+
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">SKU (Código)</label>
+          <input type="text" value={sku} onChange={(e) => setSku(e.target.value)}
+            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            placeholder="Ej: LPTP-001" />
         </div>
 
         <div>

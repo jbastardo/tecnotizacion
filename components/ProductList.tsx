@@ -27,7 +27,7 @@ export default function ProductList({ onBack }: ProductListProps) {
   const startEdit = (p: any) => {
     setEditingId(p.id);
     setEditForm({
-      name: p.name, description: p.description || '', costUsd: p.costUsd,
+      name: p.name, sku: p.sku || '', description: p.description || '', costUsd: p.costUsd,
       profitMargin: p.profitMargin, category: p.category || '', imageUrl: p.imageUrl || '',
     });
   };
@@ -136,6 +136,8 @@ export default function ProductList({ onBack }: ProductListProps) {
                 <div className="space-y-3">
                   <input type="text" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
                     className="w-full px-3 py-2 border rounded-lg" placeholder="Nombre" />
+                  <input type="text" value={editForm.sku} onChange={(e) => setEditForm({ ...editForm, sku: e.target.value })}
+                    className="w-full px-3 py-2 border rounded-lg" placeholder="SKU (código)" />
                   <textarea value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
                     className="w-full px-3 py-2 border rounded-lg" placeholder="Descripción" rows={2} />
                   <div className="grid grid-cols-3 gap-2">

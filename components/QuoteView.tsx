@@ -28,7 +28,7 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
   const buildMessage = () => {
     let msg = `*PRESUPUESTO - TECNOTIZACIÓN*\n`;
     if (quote.quoteNumber) msg += `*N° ${String(quote.quoteNumber).padStart(4, '0')}*\n`;
-    msg += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+    msg += `━━━━━━━━━━━━━\n\n`;
     msg += `Cliente: ${quote.clientName}\n`;
     msg += `Fecha: ${createdAt}\n`;
     msg += `Pago: ${paymentMethodLabels[quote.paymentMethod] || quote.paymentMethod}\n`;
@@ -53,7 +53,7 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
       });
     }
 
-    msg += `━━━━━━━━━━━━━━━━━━━━\n`;
+    msg += `━━━━━━━━━━━━━\n`;
     msg += quote.paymentMethod === 'bs'
       ? `*TOTAL: Bs ${formatBs(totals.bs)}*\n`
       : `*TOTAL: $${formatUsd(totals.usd)}*\n`;

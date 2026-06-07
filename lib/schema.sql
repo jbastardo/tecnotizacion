@@ -37,6 +37,7 @@ CREATE TABLE IF NOT EXISTS products (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   name VARCHAR(255) NOT NULL,
+  sku VARCHAR(50),
   description TEXT,
   cost_usd DECIMAL(10,2) NOT NULL,
   profit_margin DECIMAL(5,2) DEFAULT 45.00,

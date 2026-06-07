@@ -17,12 +17,43 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
   const [clientPhone, setClientPhone] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'bs' | 'cash' | 'binance' | 'divisas'>('bs');
   const [items, setItems] = useState<any[]>([]);
-  const [selectedProduct, setSelectedProduct] = useState('');
+  const [productSearch, setProductSearch] = useState('');
+  const [showProductList, setShowProductList] = useState(false);
+
+  const filteredProducts = productSearch
+    ? products.filter((p: any) =>
+        p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+        (p.sku || '').toLowerCase().includes(productSearch.toLowerCase()) ||
+        (p.category || '').toLowerCase().includes(productSearch.toLowerCase())
+      ).slice(0, 10)
+    : products.slice(0, 5);
+
+  const selectProductItem = (productId: string) => {
+    setSelectedProduct(productId);
+    setProductSearch('');
+    setShowProductList(false);
+  };
   const [quantity, setQuantity] = useState('1');
   const [rates, setRates] = useState({ bcv: 0, promedio: 0, lastUpdated: '' });
   const [loadingRates, setLoadingRates] = useState(true);
   const [ratesError, setRatesError] = useState(false);
   const [saving, setSaving] = useState(false);
+
+    if (!productSearch) {
+      setShowProductList(false);
+      setSelectedProduct('');
+    }
+  };
+
+  useEffect(() => {
+    const handler = (e: MouseEvent) => {
+      if (!(e.target as HTMLElement).closest('.product-search-container')) {
+        setShowProductList(false);
+      }
+    };
+    document.addEventListener('click', handler);
+    return () => document.removeEventListener('click', handler);
+  }, []);
 
   useEffect(() => {
     fetch('/api/tasas')
@@ -140,7 +171,7 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
     if (items.length === 0) { alert('Agrega al menos un producto'); return; }
 
     let message = `*PRESUPUESTO - TECNOTIZACIÓN*\n`;
-    message += `━━━━━━━━━━━━━━━━━━━━\n\n`;
+    message += `━━━━━━━━━━━━━\n\n`;
     message += `Cliente: ${clientName}\n`;
     message += `Fecha: ${new Date().toLocaleDateString('es-VE')}\n`;
     message += `Forma de Pago: ${
@@ -162,7 +193,7 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
       }
     });
 
-    message += `━━━━━━━━━━━━━━━━━━━━\n`;
+    message += `━━━━━━━━━━━━━\n`;
     message += paymentMethod === 'bs'
       ? `*TOTAL: Bs ${formatBs(totals.bs)}*\n`
       : `*TOTAL: $${formatUsd(totals.usd)}*\n`;
@@ -261,13 +292,33 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
       <div className="bg-white rounded-xl shadow-md p-6">
         <h3 className="text-lg font-semibold text-gray-800 mb-4">Agregar Productos</h3>
         <div className="space-y-3">
-          <select value={selectedProduct} onChange={(e) => setSelectedProduct(e.target.value)}
-            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-            <option value="">Seleccionar producto...</option>
-            {products.map((p: any) => (
-              <option key={p.id} value={p.id}>{p.name} — ${formatUsd(p.costUsd)}</option>
-            ))}
-          </select>
+          <div className="relative product-search-container">
+            <input type="text" value={productSearch} onChange={(e) => { setProductSearch(e.target.value); setShowProductList(true); }}
+              onFocus={() => setShowProductList(true)}
+              placeholder="Buscar producto por nombre, SKU o categoría..."
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
+            {showProductList && filteredProducts.length > 0 && (
+              <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                {filteredProducts.map((p: any) => (
+                  <button key={p.id}
+                    onClick={() => selectProductItem(p.id)}
+                    className={`w-full text-left px-4 py-3 hover:bg-blue-50 border-b border-gray-100 last:border-0 ${selectedProduct === p.id ? 'bg-blue-50' : ''}`}>
+                    <div className="font-medium text-gray-800 text-sm">{p.name}</div>
+                    <div className="flex justify-between items-center mt-0.5">
+                      <span className="text-xs text-gray-500">{p.sku ? `${p.sku} · ` : ''}{p.category || ''}</span>
+                      <span className="text-xs font-semibold text-blue-600">${(p.costUsd ?? 0).toFixed(2)}</span>
+                    </div>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          {selectedProduct && (
+            <p className="text-xs text-green-600 flex items-center gap-1">
+              <span className="inline-block w-2 h-2 rounded-full bg-green-500"></span>
+              {products.find((p: any) => p.id === selectedProduct)?.name}
+            </p>
+          )}
           <div className="flex gap-3">
             <div>
               <label className="block text-xs text-gray-500 mb-1">Cantidad</label>
