@@ -17,33 +17,14 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
   const [clientPhone, setClientPhone] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'bs' | 'cash' | 'binance' | 'divisas'>('bs');
   const [items, setItems] = useState<any[]>([]);
-  const [productSearch, setProductSearch] = useState('');
-  const [showProductList, setShowProductList] = useState(false);
-
-  const filteredProducts = productSearch
-    ? products.filter((p: any) =>
-        p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
-        (p.sku || '').toLowerCase().includes(productSearch.toLowerCase()) ||
-        (p.category || '').toLowerCase().includes(productSearch.toLowerCase())
-      ).slice(0, 10)
-    : products.slice(0, 5);
-
-  const selectProductItem = (productId: string) => {
-    setSelectedProduct(productId);
-    setProductSearch('');
-    setShowProductList(false);
-  };
+  const [selectedProduct, setSelectedProduct] = useState('');
   const [quantity, setQuantity] = useState('1');
   const [rates, setRates] = useState({ bcv: 0, promedio: 0, lastUpdated: '' });
   const [loadingRates, setLoadingRates] = useState(true);
   const [ratesError, setRatesError] = useState(false);
   const [saving, setSaving] = useState(false);
-
-    if (!productSearch) {
-      setShowProductList(false);
-      setSelectedProduct('');
-    }
-  };
+  const [productSearch, setProductSearch] = useState('');
+  const [showProductList, setShowProductList] = useState(false);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -59,12 +40,8 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
     fetch('/api/tasas')
       .then((res) => res.json())
       .then((data) => {
-        if (data.bcv > 0 && data.promedio > 0) {
-          setRates(data);
-          setRatesError(false);
-        } else {
-          setRatesError(true);
-        }
+        if (data.bcv > 0 && data.promedio > 0) { setRates(data); setRatesError(false); }
+        else { setRatesError(true); }
         setLoadingRates(false);
       })
       .catch(() => { setRatesError(true); setLoadingRates(false); });
@@ -73,38 +50,41 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
   useEffect(() => {
     if (selectedClientId) {
       const client = clients.find((c: any) => c.id === selectedClientId);
-      if (client) {
-        setClientName(client.name);
-        setClientPhone(client.phone || '');
-      }
+      if (client) { setClientName(client.name); setClientPhone(client.phone || ''); }
     }
   }, [selectedClientId, clients]);
 
   const activeBcv = rates.bcv;
   const activePromedio = rates.promedio;
 
+  const filteredProducts = productSearch
+    ? products.filter((p: any) =>
+        p.name.toLowerCase().includes(productSearch.toLowerCase()) ||
+        (p.sku || '').toLowerCase().includes(productSearch.toLowerCase()) ||
+        (p.category || '').toLowerCase().includes(productSearch.toLowerCase())
+      ).slice(0, 10)
+    : products.slice(0, 5);
+
+  const selectProductItem = (productId: string) => {
+    setSelectedProduct(productId);
+    setProductSearch('');
+    setShowProductList(false);
+  };
+
   const addItem = () => {
     const product = products.find((p: any) => p.id === selectedProduct);
     if (!product) return;
-    if (paymentMethod === 'bs' && activeBcv === 0) {
-      alert('Las tasas aún no cargaron. Espera un momento.');
-      return;
-    }
+    if (paymentMethod === 'bs' && activeBcv === 0) { alert('Las tasas aún no cargaron'); return; }
     const qty = Math.max(1, parseInt(quantity) || 1);
     const pricing = calculatePricing({
-      costUsd: product.costUsd,
-      quantity: qty,
-      paymentMethod,
-      profitMargin: product.profitMargin || 45,
-      bcvRate: activeBcv,
-      promedioRate: activePromedio,
+      costUsd: product.costUsd, quantity: qty, paymentMethod,
+      profitMargin: product.profitMargin || 45, bcvRate: activeBcv, promedioRate: activePromedio,
     });
     setItems([...items, { id: Date.now().toString(), product, quantity: qty, pricing }]);
-    setSelectedProduct('');
-    setQuantity('1');
+    setSelectedProduct(''); setQuantity('1');
   };
 
-  const removeItem = (id: string) => setItems(items.filter((item) => item.id !== id));
+  const removeItem = (id: string) => setItems(items.filter((i) => i.id !== id));
 
   const totals = items.reduce(
     (acc, item) => ({ usd: acc.usd + item.pricing.totalUsd, bs: acc.bs + item.pricing.totalBs }),
@@ -114,72 +94,47 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
   const saveQuote = async (status: 'draft' | 'sent') => {
     if (!clientName) { alert('Ingresa el nombre del cliente'); return false; }
     if (items.length === 0) { alert('Agrega al menos un producto'); return false; }
-
     setSaving(true);
     try {
-      // Auto-save new client if not selected from list
       if (!selectedClientId && clientName) {
-        await fetch('/api/clientes', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        fetch('/api/clientes', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ name: clientName, phone: clientPhone }),
         }).catch(() => {});
       }
-
       const res = await fetch('/api/quotes', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          clientName,
-          clientPhone,
-          paymentMethod,
-          totalUsd: totals.usd,
-          totalBs: totals.bs,
-          status,
+          clientName, clientPhone, paymentMethod,
+          totalUsd: totals.usd, totalBs: totals.bs, status,
           rates: { bcv: activeBcv, promedio: activePromedio },
           items: items.map((item) => ({
-            id: item.id,
+            id: item.id, quantity: item.quantity, pricing: item.pricing,
             product: { id: item.product?.id, name: item.product?.name, costUsd: item.product?.costUsd },
-            quantity: item.quantity,
-            pricing: item.pricing,
           })),
         }),
       });
-
-      if (res.ok) {
-        return true;
-      } else {
-        const err = await res.json();
-        alert('Error al guardar: ' + (err.error || 'Error desconocido'));
-        return false;
-      }
-    } catch (e) {
-      alert('Error de conexión al guardar el presupuesto');
+      if (res.ok) return true;
+      const err = await res.json();
+      alert('Error al guardar: ' + (err.error || 'Error desconocido'));
       return false;
-    } finally {
-      setSaving(false);
-    }
+    } catch { alert('Error de conexión'); return false; }
+    finally { setSaving(false); }
   };
 
-  const handleSave = async () => {
-    const ok = await saveQuote('draft');
-    if (ok) onSaved();
-  };
+  const handleSave = async () => { const ok = await saveQuote('draft'); if (ok) onSaved(); };
 
   const handleSendWhatsApp = async () => {
     if (!clientName) { alert('Ingresa el nombre del cliente'); return; }
     if (items.length === 0) { alert('Agrega al menos un producto'); return; }
 
-    let message = `*PRESUPUESTO - TECNOTIZACIÓN*\n`;
-    message += `━━━━━━━━━━━━━\n\n`;
+    let message = '*PRESUPUESTO - TECNOTIZACIÓN*\n';
+    message += '━━━━━━━━━━━━━\n\n';
     message += `Cliente: ${clientName}\n`;
     message += `Fecha: ${new Date().toLocaleDateString('es-VE')}\n`;
-    message += `Forma de Pago: ${
-      paymentMethod === 'bs' ? 'Bolívares (BCV)' :
-      paymentMethod === 'cash' ? 'Efectivo USD' :
-      paymentMethod === 'binance' ? 'Binance (USDT)' : 'Divisas'}\n`;
+    message += `Pago: ${paymentMethod === 'bs' ? 'Bolívares (BCV)' : paymentMethod === 'cash' ? 'Efectivo USD' : paymentMethod === 'binance' ? 'Binance (USDT)' : 'Divisas'}\n`;
     if (paymentMethod === 'bs') message += `Tasa BCV: Bs ${activeBcv.toFixed(2)}\n`;
-    message += `\n*PRODUCTOS:*\n\n`;
+    message += '\n*PRODUCTOS:*\n\n';
 
     items.forEach((item, i) => {
       message += `${i + 1}. ${item.product.name}\n   Cant: ${item.quantity}\n`;
@@ -193,29 +148,22 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
       }
     });
 
-    message += `━━━━━━━━━━━━━\n`;
-    message += paymentMethod === 'bs'
-      ? `*TOTAL: Bs ${formatBs(totals.bs)}*\n`
-      : `*TOTAL: $${formatUsd(totals.usd)}*\n`;
-    message += `\nPresupuesto válido por 7 días.\n¡Gracias por su preferencia!`;
+    message += '━━━━━━━━━━━━━\n';
+    message += paymentMethod === 'bs' ? `*TOTAL: Bs ${formatBs(totals.bs)}*\n` : `*TOTAL: $${formatUsd(totals.usd)}*\n`;
+    message += '\nPresupuesto válido por 7 días.\n¡Gracias por su preferencia!';
 
     const phone = clientPhone.replace(/[^0-9]/g, '');
     const waUrl = phone
       ? `https://api.whatsapp.com/send?phone=${phone}&text=${encodeURIComponent(message)}`
       : `https://api.whatsapp.com/send?text=${encodeURIComponent(message)}`;
 
-    // Save first, then redirect to WhatsApp
     const ok = await saveQuote('sent');
-
-    // Use location.href for reliable app launch on mobile (no popup blocker issues)
     window.location.href = waUrl;
-
     if (ok) setTimeout(() => onSaved(), 1000);
   };
 
   return (
     <div className="space-y-4">
-      {/* Header */}
       <div className="bg-white rounded-xl shadow-md p-6">
         <div className="flex items-center gap-3 mb-6">
           <button onClick={onBack} className="p-2 hover:bg-gray-100 rounded-lg">
@@ -225,7 +173,6 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
         </div>
 
         <div className="space-y-4">
-          {/* Client selector */}
           {clients.length > 0 && (
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Cliente guardado</label>
@@ -248,7 +195,7 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono (WhatsApp)</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
             <input type="tel" value={clientPhone}
               onChange={(e) => { setClientPhone(e.target.value); setSelectedClientId(''); }}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -266,15 +213,13 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
             </select>
           </div>
 
-          {/* Rates display */}
           {loadingRates ? (
             <div className="flex items-center gap-2 text-sm text-gray-500">
-              <Loader2 className="w-4 h-4 animate-spin" />
-              Cargando tasas del día...
+              <Loader2 className="w-4 h-4 animate-spin" /> Cargando tasas...
             </div>
           ) : ratesError || activeBcv === 0 ? (
             <div className="bg-amber-50 border border-amber-200 p-3 rounded-lg text-sm text-amber-800">
-              No se pudieron cargar las tasas automáticamente.
+              No se pudieron cargar las tasas.
             </div>
           ) : (
             <div className="bg-blue-50 p-3 rounded-lg text-sm">
@@ -288,20 +233,19 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
         </div>
       </div>
 
-      {/* Add products */}
       <div className="bg-white rounded-xl shadow-md p-6">
         <h3 className="text-lg font-semibold text-gray-800 mb-4">Agregar Productos</h3>
         <div className="space-y-3">
           <div className="relative product-search-container">
-            <input type="text" value={productSearch} onChange={(e) => { setProductSearch(e.target.value); setShowProductList(true); }}
+            <input type="text" value={productSearch}
+              onChange={(e) => { setProductSearch(e.target.value); setShowProductList(true); }}
               onFocus={() => setShowProductList(true)}
-              placeholder="Buscar producto por nombre, SKU o categoría..."
+              placeholder="Buscar por nombre, SKU o categoría..."
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
             {showProductList && filteredProducts.length > 0 && (
               <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
                 {filteredProducts.map((p: any) => (
-                  <button key={p.id}
-                    onClick={() => selectProductItem(p.id)}
+                  <button key={p.id} onClick={() => selectProductItem(p.id)}
                     className={`w-full text-left px-4 py-3 hover:bg-blue-50 border-b border-gray-100 last:border-0 ${selectedProduct === p.id ? 'bg-blue-50' : ''}`}>
                     <div className="font-medium text-gray-800 text-sm">{p.name}</div>
                     <div className="flex justify-between items-center mt-0.5">
@@ -315,7 +259,7 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
           </div>
           {selectedProduct && (
             <p className="text-xs text-green-600 flex items-center gap-1">
-              <span className="inline-block w-2 h-2 rounded-full bg-green-500"></span>
+              <span className="inline-block w-2 h-2 rounded-full bg-green-500" />
               {products.find((p: any) => p.id === selectedProduct)?.name}
             </p>
           )}
@@ -323,21 +267,19 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
             <div>
               <label className="block text-xs text-gray-500 mb-1">Cantidad</label>
               <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)}
-                className="w-20 px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center"
-                min="1" />
+                className="w-20 px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center" min="1" />
             </div>
             <button onClick={addItem} disabled={!selectedProduct}
-              className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 transition-colors disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-5">
+              className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-5">
               <Plus className="w-5 h-5" /> Agregar
             </button>
           </div>
         </div>
       </div>
 
-      {/* Items list */}
       {items.length > 0 && (
         <div className="bg-white rounded-xl shadow-md p-6">
-          <h3 className="text-lg font-semibold text-gray-800 mb-4">Items del Presupuesto</h3>
+          <h3 className="text-lg font-semibold text-gray-800 mb-4">Items</h3>
           <div className="space-y-3">
             {items.map((item) => (
               <div key={item.id} className="border border-gray-200 rounded-lg p-4">
@@ -347,20 +289,13 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
                     <p className="text-sm text-gray-500">Cantidad: {item.quantity}</p>
                     {paymentMethod === 'bs' ? (
                       <div className="mt-1 space-y-0.5">
-                        <p className="text-sm text-gray-600">
-                          P/U: Bs {formatBs(item.pricing.salePriceBs + item.pricing.ivaAmount)}
-                          <span className="text-xs text-gray-400"> (incluye IVA 16%)</span>
-                        </p>
-                        <p className="text-sm font-semibold text-blue-600">
-                          Subtotal: Bs {formatBs(item.pricing.totalBs)}
-                        </p>
+                        <p className="text-sm text-gray-600">P/U: Bs {formatBs(item.pricing.salePriceBs + item.pricing.ivaAmount)} <span className="text-xs text-gray-400">(+IVA 16%)</span></p>
+                        <p className="text-sm font-semibold text-blue-600">Subtotal: Bs {formatBs(item.pricing.totalBs)}</p>
                       </div>
                     ) : (
                       <div className="mt-1 space-y-0.5">
                         <p className="text-sm text-gray-600">P/U: ${formatUsd(item.pricing.salePriceUsd)}</p>
-                        <p className="text-sm font-semibold text-blue-600">
-                          Subtotal: ${formatUsd(item.pricing.totalUsd)}
-                        </p>
+                        <p className="text-sm font-semibold text-blue-600">Subtotal: ${formatUsd(item.pricing.totalUsd)}</p>
                       </div>
                     )}
                   </div>
@@ -371,7 +306,6 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
               </div>
             ))}
           </div>
-
           <div className="mt-6 pt-4 border-t-2 border-gray-200">
             <div className="flex justify-between items-center">
               <span className="text-lg font-bold text-gray-800">TOTAL:</span>
@@ -383,16 +317,15 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
         </div>
       )}
 
-      {/* Action buttons */}
       {items.length > 0 && clientName && (
         <div className="space-y-3 pb-2">
           <button onClick={handleSendWhatsApp} disabled={saving}
-            className="w-full bg-green-500 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-600 transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+            className="w-full bg-green-500 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-600 disabled:opacity-60 flex items-center justify-center gap-2">
             {saving ? <Loader2 className="w-6 h-6 animate-spin" /> : <Send className="w-6 h-6" />}
             Enviar por WhatsApp
           </button>
           <button onClick={handleSave} disabled={saving}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-60">
+            className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-2">
             {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
             Guardar Presupuesto
           </button>
