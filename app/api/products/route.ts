@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { getSession } from '@/lib/auth';
 
 function mapProduct(row: any) {
   return {
@@ -13,13 +14,14 @@ function mapProduct(row: any) {
   };
 }
 
-// NOTE: tenant filtering disabled until multi-tenant auth is fully active.
-// All queries show all products regardless of tenant_id.
-
 export async function GET() {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
   try {
     const result = await query(
-      'SELECT id, name, description, cost_usd, profit_margin, category, created_at FROM products ORDER BY created_at DESC'
+      'SELECT id, name, description, cost_usd, profit_margin, category, created_at FROM products WHERE tenant_id = $1 ORDER BY created_at DESC',
+      [session.tenantId]
     );
     return NextResponse.json(result.rows.map(mapProduct));
   } catch (error) {
@@ -29,17 +31,19 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
   try {
     const { name, description, costUsd, profitMargin, category } = await request.json();
     if (!name || !costUsd) return NextResponse.json({ error: 'name and costUsd required' }, { status: 400 });
 
     const result = await query(
-      `INSERT INTO products (name, description, cost_usd, profit_margin, category)
-       VALUES ($1, $2, $3, $4, $5)
+      `INSERT INTO products (tenant_id, name, description, cost_usd, profit_margin, category)
+       VALUES ($1, $2, $3, $4, $5, $6)
        RETURNING id, name, description, cost_usd, profit_margin, category, created_at`,
-      [name, description || null, costUsd, profitMargin || 45, category || null]
+      [session.tenantId, name, description || null, costUsd, profitMargin || 45, category || null]
     );
-
     return NextResponse.json(mapProduct(result.rows[0]), { status: 201 });
   } catch (error) {
     console.error('Error creating product:', error);
@@ -48,18 +52,20 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
   try {
     const { id, name, description, costUsd, profitMargin, category } = await request.json();
     if (!id || !name) return NextResponse.json({ error: 'id and name required' }, { status: 400 });
 
     const result = await query(
       `UPDATE products SET name = $1, description = $2, cost_usd = $3, profit_margin = $4, category = $5
-       WHERE id = $6
+       WHERE id = $6 AND tenant_id = $7
        RETURNING id, name, description, cost_usd, profit_margin, category, created_at`,
-      [name, description || null, costUsd, profitMargin || 45, category || null, id]
+      [name, description || null, costUsd, profitMargin || 45, category || null, id, session.tenantId]
     );
-
-    if (result.rows.length === 0) return NextResponse.json({ error: 'Product not found' }, { status: 404 });
+    if (result.rows.length === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
     return NextResponse.json(mapProduct(result.rows[0]));
   } catch (error) {
     console.error('Error updating product:', error);
@@ -68,11 +74,12 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
   try {
     const { id } = await request.json();
-    if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
-
-    await query('DELETE FROM products WHERE id = $1', [id]);
+    await query('DELETE FROM products WHERE id = $1 AND tenant_id = $2', [id, session.tenantId]);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting product:', error);

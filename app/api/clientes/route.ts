@@ -1,32 +1,30 @@
 import { NextResponse } from 'next/server';
 import { query } from '@/lib/db';
+import { getSession } from '@/lib/auth';
 
 export async function GET() {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
   try {
     const result = await query(
-      'SELECT id, rif, name, phone, email, created_at FROM clients ORDER BY name ASC'
+      'SELECT id, rif, name, phone, email, created_at FROM clients WHERE tenant_id = $1 ORDER BY name ASC',
+      [session.tenantId]
     );
     return NextResponse.json(result.rows.map((r: any) => ({
-      id: r.id,
-      rif: r.rif || '',
-      name: r.name,
-      phone: r.phone || '',
-      email: r.email || '',
-      createdAt: r.created_at,
+      id: r.id, rif: r.rif || '', name: r.name,
+      phone: r.phone || '', email: r.email || '', createdAt: r.created_at,
     })));
   } catch (error: any) {
-    // rif column may not exist yet
     if (error?.code === '42703') {
-      try {
-        const result = await query(
-          'SELECT id, name, phone, email, created_at FROM clients ORDER BY name ASC'
-        );
-        return NextResponse.json(result.rows.map((r: any) => ({
-          id: r.id, rif: '', name: r.name, phone: r.phone || '', email: r.email || '', createdAt: r.created_at,
-        })));
-      } catch (e) {
-        return NextResponse.json([]);
-      }
+      // rif column missing fallback
+      const result = await query(
+        'SELECT id, name, phone, email, created_at FROM clients WHERE tenant_id = $1 ORDER BY name ASC',
+        [session.tenantId]
+      );
+      return NextResponse.json(result.rows.map((r: any) => ({
+        id: r.id, rif: '', name: r.name, phone: r.phone || '', email: r.email || '', createdAt: r.created_at,
+      })));
     }
     console.error('Error fetching clients:', error);
     return NextResponse.json([], { status: 500 });
@@ -34,34 +32,29 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const { rif, name, phone, email } = body;
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
+  try {
+    const { rif, name, phone, email } = await request.json();
     if (!name) return NextResponse.json({ error: 'name is required' }, { status: 400 });
 
     try {
       const result = await query(
-        `INSERT INTO clients (rif, name, phone, email) VALUES ($1, $2, $3, $4)
-         ON CONFLICT (rif) DO UPDATE SET name = EXCLUDED.name, phone = EXCLUDED.phone, email = EXCLUDED.email
+        `INSERT INTO clients (tenant_id, rif, name, phone, email) VALUES ($1, $2, $3, $4, $5)
          RETURNING id, rif, name, phone, email, created_at`,
-        [rif || '', name, phone || null, email || null]
+        [session.tenantId, rif || '', name, phone || null, email || null]
       );
-      return NextResponse.json({
-        id: result.rows[0].id, rif: result.rows[0].rif || '', name: result.rows[0].name,
-        phone: result.rows[0].phone || '', email: result.rows[0].email || '', createdAt: result.rows[0].created_at,
-      }, { status: 201 });
-    } catch (rifError: any) {
-      // rif column doesn't exist - fallback without rif
+      const r = result.rows[0];
+      return NextResponse.json({ id: r.id, rif: r.rif || '', name: r.name, phone: r.phone || '', email: r.email || '', createdAt: r.created_at }, { status: 201 });
+    } catch {
       const result = await query(
-        `INSERT INTO clients (name, phone, email) VALUES ($1, $2, $3)
+        `INSERT INTO clients (tenant_id, name, phone, email) VALUES ($1, $2, $3, $4)
          RETURNING id, name, phone, email, created_at`,
-        [name, phone || null, email || null]
+        [session.tenantId, name, phone || null, email || null]
       );
-      return NextResponse.json({
-        id: result.rows[0].id, rif: rif || '', name: result.rows[0].name,
-        phone: result.rows[0].phone || '', email: result.rows[0].email || '', createdAt: result.rows[0].created_at,
-      }, { status: 201 });
+      const r = result.rows[0];
+      return NextResponse.json({ id: r.id, rif: rif || '', name: r.name, phone: r.phone || '', email: r.email || '', createdAt: r.created_at }, { status: 201 });
     }
   } catch (error) {
     console.error('Error creating client:', error);
@@ -70,35 +63,31 @@ export async function POST(request: Request) {
 }
 
 export async function PUT(request: Request) {
-  try {
-    const body = await request.json();
-    const { id, rif, name, phone, email } = body;
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
-    if (!id || !name) return NextResponse.json({ error: 'id and name are required' }, { status: 400 });
+  try {
+    const { id, rif, name, phone, email } = await request.json();
+    if (!id || !name) return NextResponse.json({ error: 'id and name required' }, { status: 400 });
 
     try {
       const result = await query(
-        `UPDATE clients SET rif = $1, name = $2, phone = $3, email = $4 WHERE id = $5
+        `UPDATE clients SET rif = $1, name = $2, phone = $3, email = $4 WHERE id = $5 AND tenant_id = $6
          RETURNING id, rif, name, phone, email, created_at`,
-        [rif || '', name, phone || null, email || null, id]
+        [rif || '', name, phone || null, email || null, id, session.tenantId]
       );
-      if (result.rows.length === 0) return NextResponse.json({ error: 'Client not found' }, { status: 404 });
-      return NextResponse.json({
-        id: result.rows[0].id, rif: result.rows[0].rif || '', name: result.rows[0].name,
-        phone: result.rows[0].phone || '', email: result.rows[0].email || '', createdAt: result.rows[0].created_at,
-      });
+      if (result.rows.length === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      const r = result.rows[0];
+      return NextResponse.json({ id: r.id, rif: r.rif || '', name: r.name, phone: r.phone || '', email: r.email || '', createdAt: r.created_at });
     } catch {
-      // fallback without rif
       const result = await query(
-        `UPDATE clients SET name = $1, phone = $2, email = $3 WHERE id = $4
+        `UPDATE clients SET name = $1, phone = $2, email = $3 WHERE id = $4 AND tenant_id = $5
          RETURNING id, name, phone, email, created_at`,
-        [name, phone || null, email || null, id]
+        [name, phone || null, email || null, id, session.tenantId]
       );
-      if (result.rows.length === 0) return NextResponse.json({ error: 'Client not found' }, { status: 404 });
-      return NextResponse.json({
-        id: result.rows[0].id, rif: rif || '', name: result.rows[0].name,
-        phone: result.rows[0].phone || '', email: result.rows[0].email || '', createdAt: result.rows[0].created_at,
-      });
+      if (result.rows.length === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
+      const r = result.rows[0];
+      return NextResponse.json({ id: r.id, rif: rif || '', name: r.name, phone: r.phone || '', email: r.email || '', createdAt: r.created_at });
     }
   } catch (error) {
     console.error('Error updating client:', error);
@@ -107,10 +96,13 @@ export async function PUT(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  const session = await getSession();
+  if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
+
   try {
     const { id } = await request.json();
-    if (!id) return NextResponse.json({ error: 'id is required' }, { status: 400 });
-    await query('DELETE FROM clients WHERE id = $1', [id]);
+    if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 });
+    await query('DELETE FROM clients WHERE id = $1 AND tenant_id = $2', [id, session.tenantId]);
     return NextResponse.json({ success: true });
   } catch (error) {
     console.error('Error deleting client:', error);

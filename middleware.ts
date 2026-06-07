@@ -1,9 +1,36 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
+// Public paths that never require auth
+const PUBLIC = [
+  '/login',
+  '/api/auth',
+  '/api/health',
+  '/api/tasas',
+  '/api/icon',
+  '/manifest.json',
+  '/sw.js',
+  '/icons/',
+];
+
 export function middleware(request: NextRequest) {
-  // Auth middleware disabled - login/session system not yet active
-  // TODO: Enable when multi-tenant auth is ready
+  const { pathname } = request.nextUrl;
+
+  // Always allow public paths
+  if (PUBLIC.some((p) => pathname.startsWith(p))) {
+    return NextResponse.next();
+  }
+
+  const session = request.cookies.get('session')?.value;
+
+  // No session → redirect to login (pages) or 401 (API)
+  if (!session) {
+    if (pathname.startsWith('/api/')) {
+      return NextResponse.json({ error: 'No autorizado. Inicia sesión.' }, { status: 401 });
+    }
+    return NextResponse.redirect(new URL('/login', request.url));
+  }
+
   return NextResponse.next();
 }
 

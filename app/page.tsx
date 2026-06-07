@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, FileText, Package, Users, ClipboardList } from 'lucide-react';
+import { Plus, FileText, Package, Users, ClipboardList, LogOut } from 'lucide-react';
 import ProductForm from '@/components/ProductForm';
 import ProductList from '@/components/ProductList';
 import ClientManager from '@/components/ClientManager';
@@ -60,12 +60,27 @@ export default function Home() {
     setCurrentView('viewQuote');
   };
 
+  const handleLogout = async () => {
+    await fetch('/api/auth', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ action: 'logout' }),
+    });
+    window.location.href = '/login';
+  };
+
   return (
     <div className="min-h-screen bg-gray-50">
       <header className="bg-blue-600 text-white p-4 shadow-lg">
-        <div className="max-w-4xl mx-auto">
-          <h1 className="text-2xl font-bold">Tecnotización</h1>
-          <p className="text-blue-100 text-sm">Presupuestos Profesionales</p>
+        <div className="max-w-4xl mx-auto flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold">Tecnotización</h1>
+            <p className="text-blue-100 text-sm">Presupuestos Profesionales</p>
+          </div>
+          <button onClick={handleLogout} title="Cerrar sesión"
+            className="p-2 hover:bg-blue-700 rounded-lg transition-colors">
+            <LogOut className="w-5 h-5" />
+          </button>
         </div>
       </header>
 
