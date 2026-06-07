@@ -37,6 +37,9 @@ export async function GET() {
   if (!result) result = await tryQuery(
     'SELECT id, name, description, cost_usd, profit_margin, category, created_at FROM products WHERE tenant_id = $1 OR tenant_id IS NULL ORDER BY created_at DESC'
   );
+  if (!result) result = await tryQuery(
+    'SELECT id, name, description, cost_usd, profit_margin, category, created_at FROM products ORDER BY created_at DESC'
+  );
 
   if (result) return NextResponse.json(result.rows.map(mapProduct));
   return NextResponse.json({ error: 'Failed to fetch products' }, { status: 500 });

@@ -15,10 +15,17 @@ export async function GET() {
         [session.tenantId]
       );
     } catch {
-      result = await query(
-        'SELECT name, description, cost_usd, profit_margin, category, image_url FROM products WHERE tenant_id = $1 OR tenant_id IS NULL ORDER BY created_at DESC',
-        [session.tenantId]
-      );
+      try {
+        result = await query(
+          'SELECT name, description, cost_usd, profit_margin, category, image_url FROM products WHERE tenant_id = $1 OR tenant_id IS NULL ORDER BY created_at DESC',
+          [session.tenantId]
+        );
+      } catch {
+        result = await query(
+          'SELECT name, description, cost_usd, profit_margin, category FROM products WHERE tenant_id = $1 OR tenant_id IS NULL ORDER BY created_at DESC',
+          [session.tenantId]
+        );
+      }
     }
 
     const data = result.rows.map((r: any) => ({
