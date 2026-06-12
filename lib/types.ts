@@ -36,6 +36,7 @@ export interface ItemPricing {
   subtotalUsd: number;
   totalBs: number;
   totalUsd: number;
+  effectiveMargin?: number;
 }
 
 export interface QuoteItem {

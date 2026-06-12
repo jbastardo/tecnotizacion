@@ -129,7 +129,7 @@ export default function QuoteHistory({ onBack, onViewQuote }: QuoteHistoryProps)
                       </span>
                     </div>
                     <p className="text-sm text-gray-500">
-                      RIF: {q.clientRif || 'N/A'} · {q.paymentMethod === 'bs' ? `Bs ${formatBs(q.totalBs ?? 0)}` : `$${formatUsd(q.totalUsd ?? 0)}`}
+                      {q.clientRif && <span>RIF: {q.clientRif} · </span>}{q.paymentMethod === 'bs' ? `Bs ${formatBs(q.totalBs ?? 0)}` : `$${formatUsd(q.totalUsd ?? 0)}`}
                     </p>
                     <p className="text-xs text-gray-400 mt-1">
                       {new Date(q.createdAt).toLocaleDateString('es-VE', { day: '2-digit', month: 'short', year: 'numeric' })}

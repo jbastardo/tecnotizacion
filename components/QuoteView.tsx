@@ -20,6 +20,10 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
   const totals = quote.totals || { usd: quote.totalUsd || 0, bs: quote.totalBs || 0 };
   const rates = quote.rates || quote.rates_data || {};
   const hideIva = quote.hideIva || false;
+  const clientRif = quote.clientRif || '';
+  const displayTotals = hideIva && quote.paymentMethod === 'bs'
+    ? { ...totals, bs: items.reduce((acc: number, item: any) => acc + ((item.pricing?.subtotalBs) || 0), 0) }
+    : totals;
   const createdAt = quote.createdAt
     ? new Date(quote.createdAt).toLocaleDateString('es-VE')
     : quote.created_at
@@ -31,6 +35,7 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
     if (quote.quoteNumber) msg += `*N° ${String(quote.quoteNumber).padStart(4, '0')}*\n`;
     msg += `━━━━━━━━━━━━━\n\n`;
     msg += `Cliente: ${quote.clientName}\n`;
+    if (clientRif) msg += `RIF: ${clientRif}\n`;
     msg += `Fecha: ${createdAt}\n`;
     msg += `Pago: ${paymentMethodLabels[quote.paymentMethod] || quote.paymentMethod}\n`;
     if (quote.paymentMethod === 'bs' && rates?.bcv > 0) {
@@ -47,10 +52,11 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
         if (quote.paymentMethod === 'bs') {
           if (!hideIva) {
             msg += `   P/U: Bs ${formatBs((p.salePriceBs || 0) + (p.ivaAmount || 0))}\n`;
+            msg += `   Subtotal: Bs ${formatBs(p.totalBs || 0)}\n\n`;
           } else {
             msg += `   P/U: Bs ${formatBs(p.salePriceBs || 0)}\n`;
+            msg += `   Subtotal: Bs ${formatBs(p.subtotalBs || 0)}\n\n`;
           }
-          msg += `   Subtotal: Bs ${formatBs(p.totalBs || 0)}\n\n`;
         } else {
           msg += `   P/U: $${formatUsd(p.salePriceUsd || 0)}\n`;
           msg += `   Subtotal: $${formatUsd(p.totalUsd || 0)}\n\n`;
@@ -60,8 +66,8 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
 
     msg += `━━━━━━━━━━━━━\n`;
     msg += quote.paymentMethod === 'bs'
-      ? `*TOTAL: Bs ${formatBs(totals.bs)}*\n`
-      : `*TOTAL: $${formatUsd(totals.usd)}*\n`;
+      ? `*TOTAL: Bs ${formatBs(displayTotals.bs)}*\n`
+      : `*TOTAL: $${formatUsd(displayTotals.usd)}*\n`;
     if (!hideIva && quote.paymentMethod === 'bs') msg += 'Precios incluyen IVA 16%\n';
     msg += `\nPresupuesto válido por 7 días.\n¡Gracias por su preferencia!`;
     return msg;
@@ -113,6 +119,9 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
             <p className="text-blue-200 text-xs font-mono">N° {String(quote.quoteNumber).padStart(4, '0')}</p>
           )}
           <p className="font-semibold text-2xl">{quote.clientName}</p>
+          {clientRif && (
+            <p className="text-blue-100 text-sm">RIF: {clientRif}</p>
+          )}
           <p className="text-blue-100 text-sm">Fecha: {createdAt}</p>
           <p className="text-blue-100 text-sm">
             Pago: {paymentMethodLabels[quote.paymentMethod] || quote.paymentMethod}
@@ -122,6 +131,9 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
           )}
           {hideIva && quote.paymentMethod === 'bs' && (
             <p className="text-blue-100 text-sm">IVA no visible en este presupuesto</p>
+          )}
+          {items.length > 0 && items[0]?.pricing?.effectiveMargin != null && items[0].pricing.effectiveMargin < (items[0].product?.profitMargin || 45) && (
+            <p className="text-amber-200 text-xs mt-1">Precios con descuento revendedor aplicado</p>
           )}
         </div>
       </div>
@@ -141,7 +153,11 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
                     <div className="flex justify-between items-start">
                       <div>
                         <h4 className="font-semibold text-gray-800">{name}</h4>
-                        <p className="text-sm text-gray-500">Cantidad: {qty}</p>
+                        <p className="text-sm text-gray-500">Cantidad: {qty}
+                          {p.effectiveMargin != null && p.effectiveMargin < 45 && (
+                            <span className="text-amber-600 ml-2">· Utilidad: {p.effectiveMargin}%</span>
+                          )}
+                        </p>
                       </div>
                       <div className="text-right">
                         {quote.paymentMethod === 'bs' ? (
@@ -152,13 +168,16 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
                                   P/U: Bs {formatBs((p.salePriceBs || 0) + (p.ivaAmount || 0))}
                                 </p>
                                 <p className="text-xs text-gray-400">(+IVA 16%)</p>
+                                <p className="font-bold text-blue-600">Bs {formatBs(p.totalBs || 0)}</p>
                               </>
                             ) : (
-                              <p className="text-sm text-gray-500">
-                                P/U: Bs {formatBs(p.salePriceBs || 0)}
-                              </p>
+                              <>
+                                <p className="text-sm text-gray-500">
+                                  P/U: Bs {formatBs(p.salePriceBs || 0)}
+                                </p>
+                                <p className="font-bold text-blue-600">Bs {formatBs(p.subtotalBs || 0)}</p>
+                              </>
                             )}
-                            <p className="font-bold text-blue-600">Bs {formatBs(p.totalBs || 0)}</p>
                           </>
                         ) : (
                           <>
@@ -183,8 +202,8 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
             <span className="text-xl font-bold text-gray-800">TOTAL:</span>
             <span className="text-3xl font-bold text-blue-600">
               {quote.paymentMethod === 'bs'
-                ? `Bs ${formatBs(totals.bs)}`
-                : `$${formatUsd(totals.usd)}`}
+                ? `Bs ${formatBs(displayTotals.bs)}`
+                : `$${formatUsd(displayTotals.usd)}`}
             </span>
           </div>
           <p className="text-sm text-gray-400 mt-2 text-center">Válido por 7 días</p>

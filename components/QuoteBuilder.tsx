@@ -14,6 +14,7 @@ interface QuoteBuilderProps {
 export default function QuoteBuilder({ products, clients, onBack, onSaved }: QuoteBuilderProps) {
   const [selectedClientId, setSelectedClientId] = useState('');
   const [clientName, setClientName] = useState('');
+  const [clientRif, setClientRif] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [paymentMethod, setPaymentMethod] = useState<'bs' | 'cash' | 'binance' | 'divisas'>('bs');
   const [items, setItems] = useState<any[]>([]);
@@ -55,11 +56,13 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
       const client = clients.find((c: any) => c.id === selectedClientId);
       if (client) {
         setClientName(client.name);
+        setClientRif(client.rif || '');
         setClientPhone(client.phone || '');
         setClientIsRevendedor(client.isRevendedor || false);
         setClientDiscountRevendedor(client.discountRevendedor || 0);
       }
     } else {
+      setClientRif('');
       setClientIsRevendedor(false);
       setClientDiscountRevendedor(0);
     }
@@ -115,6 +118,13 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
     { usd: 0, bs: 0 }
   );
 
+  const totalsWithoutIva = items.reduce(
+    (acc, item) => ({ usd: acc.usd + item.pricing.totalUsd, bs: acc.bs + item.pricing.subtotalBs }),
+    { usd: 0, bs: 0 }
+  );
+
+  const displayTotals = hideIva ? totalsWithoutIva : totals;
+
   const saveQuote = async (status: 'draft' | 'sent') => {
     if (!clientName) { alert('Ingresa el nombre del cliente'); return false; }
     if (items.length === 0) { alert('Agrega al menos un producto'); return false; }
@@ -129,7 +139,7 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
       const res = await fetch('/api/quotes', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          clientName, clientPhone, paymentMethod,
+          clientName, clientRif, clientPhone, paymentMethod,
           totalUsd: totals.usd, totalBs: totals.bs, status,
           hideIva,
           rates: { bcv: activeBcv, promedio: activePromedio },
@@ -156,6 +166,7 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
     let message = '*PRESUPUESTO - TECNOTIZACIÓN*\n';
     message += '━━━━━━━━━━━━━\n\n';
     message += `Cliente: ${clientName}\n`;
+    if (clientRif) message += `RIF: ${clientRif}\n`;
     message += `Fecha: ${new Date().toLocaleDateString('es-VE')}\n`;
     message += `Pago: ${paymentMethod === 'bs' ? 'Bolívares (BCV)' : paymentMethod === 'cash' ? 'Efectivo USD' : paymentMethod === 'binance' ? 'Binance (USDT)' : 'Divisas'}\n`;
     if (paymentMethod === 'bs') message += `Tasa BCV: Bs ${activeBcv.toFixed(2)}\n`;
@@ -168,10 +179,11 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
         if (!hideIva) {
           message += `   P/U: Bs ${formatBs(item.pricing.salePriceBs + item.pricing.ivaAmount)}\n`;
           message += `   (Bs ${formatBs(item.pricing.salePriceBs)} + IVA 16%)\n`;
+          message += `   Subtotal: Bs ${formatBs(item.pricing.totalBs)}\n\n`;
         } else {
           message += `   P/U: Bs ${formatBs(item.pricing.salePriceBs)}\n`;
+          message += `   Subtotal: Bs ${formatBs(item.pricing.subtotalBs)}\n\n`;
         }
-        message += `   Subtotal: Bs ${formatBs(item.pricing.totalBs)}\n\n`;
       } else {
         message += `   P/U: $${formatUsd(item.pricing.salePriceUsd)}\n`;
         message += `   Subtotal: $${formatUsd(item.pricing.totalUsd)}\n\n`;
@@ -179,7 +191,14 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
     });
 
     message += '━━━━━━━━━━━━━\n';
-    message += paymentMethod === 'bs' ? `*TOTAL: Bs ${formatBs(totals.bs)}*\n` : `*TOTAL: $${formatUsd(totals.usd)}*\n`;
+    if (paymentMethod === 'bs') {
+      const displayTotal = hideIva
+        ? items.reduce((acc, item) => acc + item.pricing.subtotalBs, 0)
+        : totals.bs;
+      message += `*TOTAL: Bs ${formatBs(displayTotal)}*\n`;
+    } else {
+      message += `*TOTAL: $${formatUsd(totals.usd)}*\n`;
+    }
     if (!hideIva && paymentMethod === 'bs') message += 'Precios incluyen IVA 16%\n';
     message += '\nPresupuesto válido por 7 días.\n¡Gracias por su preferencia!';
 
@@ -335,15 +354,24 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <h4 className="font-semibold text-gray-800">{item.product.name}</h4>
-                    <p className="text-sm text-gray-500">Cantidad: {item.quantity}</p>
+                    <p className="text-sm text-gray-500">Cantidad: {item.quantity}
+                      {clientIsRevendedor && clientDiscountRevendedor > 0 && (
+                        <span className="text-amber-600 ml-2">· Utilidad: {item.pricing.effectiveMargin}%</span>
+                      )}
+                    </p>
                     {paymentMethod === 'bs' ? (
                       <div className="mt-1 space-y-0.5">
                         {hideIva ? (
-                          <p className="text-sm text-gray-600">P/U: Bs {formatBs(item.pricing.salePriceBs)}</p>
+                          <>
+                            <p className="text-sm text-gray-600">P/U: Bs {formatBs(item.pricing.salePriceBs)}</p>
+                            <p className="text-sm font-semibold text-blue-600">Subtotal: Bs {formatBs(item.pricing.subtotalBs)}</p>
+                          </>
                         ) : (
-                          <p className="text-sm text-gray-600">P/U: Bs {formatBs(item.pricing.salePriceBs + item.pricing.ivaAmount)} <span className="text-xs text-gray-400">(+IVA 16%)</span></p>
+                          <>
+                            <p className="text-sm text-gray-600">P/U: Bs {formatBs(item.pricing.salePriceBs + item.pricing.ivaAmount)} <span className="text-xs text-gray-400">(+IVA 16%)</span></p>
+                            <p className="text-sm font-semibold text-blue-600">Subtotal: Bs {formatBs(item.pricing.totalBs)}</p>
+                          </>
                         )}
-                        <p className="text-sm font-semibold text-blue-600">Subtotal: Bs {formatBs(item.pricing.totalBs)}</p>
                       </div>
                     ) : (
                       <div className="mt-1 space-y-0.5">
@@ -363,7 +391,7 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
             <div className="flex justify-between items-center">
               <span className="text-lg font-bold text-gray-800">TOTAL:</span>
               <span className="text-2xl font-bold text-blue-600">
-                {paymentMethod === 'bs' ? `Bs ${formatBs(totals.bs)}` : `$${formatUsd(totals.usd)}`}
+                {paymentMethod === 'bs' ? `Bs ${formatBs(displayTotals.bs)}` : `$${formatUsd(displayTotals.usd)}`}
               </span>
             </div>
           </div>

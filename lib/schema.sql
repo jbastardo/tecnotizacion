@@ -70,6 +70,7 @@ CREATE TABLE IF NOT EXISTS quotes (
   tenant_id UUID NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
   quote_number INTEGER DEFAULT nextval('quotes_number_seq'),
   client_name VARCHAR(255) NOT NULL,
+  client_rif VARCHAR(20),
   client_phone VARCHAR(50),
   client_email VARCHAR(255),
   payment_method VARCHAR(50) NOT NULL,
