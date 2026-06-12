@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Plus, Trash2, Send, Loader2, CheckCircle } from 'lucide-react';
-import { calculatePricing, formatBs, formatUsd } from '@/lib/pricing';
+import { calculatePricing, validateMargin, formatBs, formatUsd } from '@/lib/pricing';
 
 interface QuoteBuilderProps {
   products: any[];
@@ -25,6 +25,9 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
   const [saving, setSaving] = useState(false);
   const [productSearch, setProductSearch] = useState('');
   const [showProductList, setShowProductList] = useState(false);
+  const [hideIva, setHideIva] = useState(false);
+  const [clientIsRevendedor, setClientIsRevendedor] = useState(false);
+  const [clientDiscountRevendedor, setClientDiscountRevendedor] = useState(0);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -50,7 +53,15 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
   useEffect(() => {
     if (selectedClientId) {
       const client = clients.find((c: any) => c.id === selectedClientId);
-      if (client) { setClientName(client.name); setClientPhone(client.phone || ''); }
+      if (client) {
+        setClientName(client.name);
+        setClientPhone(client.phone || '');
+        setClientIsRevendedor(client.isRevendedor || false);
+        setClientDiscountRevendedor(client.discountRevendedor || 0);
+      }
+    } else {
+      setClientIsRevendedor(false);
+      setClientDiscountRevendedor(0);
     }
   }, [selectedClientId, clients]);
 
@@ -76,9 +87,22 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
     if (!product) return;
     if (paymentMethod === 'bs' && activeBcv === 0) { alert('Las tasas aún no cargaron'); return; }
     const qty = Math.max(1, parseInt(quantity) || 1);
+
+    const discount = clientIsRevendedor ? clientDiscountRevendedor : 0;
+    const profitMargin = product.profitMargin || 45;
+
+    if (discount > 0) {
+      const validation = validateMargin(profitMargin, discount);
+      if (!validation.valid) {
+        alert(`No es posible aplicar ${discount}% de descuento. El margen original es ${profitMargin}% y el descuento dejaría la utilidad en ${validation.effectiveMargin}%, por debajo del mínimo del ${validation.minRequired}%.`);
+        return;
+      }
+    }
+
     const pricing = calculatePricing({
       costUsd: product.costUsd, quantity: qty, paymentMethod,
-      profitMargin: product.profitMargin || 45, bcvRate: activeBcv, promedioRate: activePromedio,
+      profitMargin, bcvRate: activeBcv, promedioRate: activePromedio,
+      discountRevendedor: discount,
     });
     setItems([...items, { id: Date.now().toString(), product, quantity: qty, pricing }]);
     setSelectedProduct(''); setQuantity('1');
@@ -107,6 +131,7 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
         body: JSON.stringify({
           clientName, clientPhone, paymentMethod,
           totalUsd: totals.usd, totalBs: totals.bs, status,
+          hideIva,
           rates: { bcv: activeBcv, promedio: activePromedio },
           items: items.map((item) => ({
             id: item.id, quantity: item.quantity, pricing: item.pricing,
@@ -134,13 +159,18 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
     message += `Fecha: ${new Date().toLocaleDateString('es-VE')}\n`;
     message += `Pago: ${paymentMethod === 'bs' ? 'Bolívares (BCV)' : paymentMethod === 'cash' ? 'Efectivo USD' : paymentMethod === 'binance' ? 'Binance (USDT)' : 'Divisas'}\n`;
     if (paymentMethod === 'bs') message += `Tasa BCV: Bs ${activeBcv.toFixed(2)}\n`;
+    if (clientIsRevendedor && clientDiscountRevendedor > 0) message += `Descuento revendedor: ${clientDiscountRevendedor}%\n`;
     message += '\n*PRODUCTOS:*\n\n';
 
     items.forEach((item, i) => {
       message += `${i + 1}. ${item.product.name}\n   Cant: ${item.quantity}\n`;
       if (paymentMethod === 'bs') {
-        message += `   P/U: Bs ${formatBs(item.pricing.salePriceBs + item.pricing.ivaAmount)}\n`;
-        message += `   (Bs ${formatBs(item.pricing.salePriceBs)} + IVA 16%)\n`;
+        if (!hideIva) {
+          message += `   P/U: Bs ${formatBs(item.pricing.salePriceBs + item.pricing.ivaAmount)}\n`;
+          message += `   (Bs ${formatBs(item.pricing.salePriceBs)} + IVA 16%)\n`;
+        } else {
+          message += `   P/U: Bs ${formatBs(item.pricing.salePriceBs)}\n`;
+        }
         message += `   Subtotal: Bs ${formatBs(item.pricing.totalBs)}\n\n`;
       } else {
         message += `   P/U: $${formatUsd(item.pricing.salePriceUsd)}\n`;
@@ -150,6 +180,7 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
 
     message += '━━━━━━━━━━━━━\n';
     message += paymentMethod === 'bs' ? `*TOTAL: Bs ${formatBs(totals.bs)}*\n` : `*TOTAL: $${formatUsd(totals.usd)}*\n`;
+    if (!hideIva && paymentMethod === 'bs') message += 'Precios incluyen IVA 16%\n';
     message += '\nPresupuesto válido por 7 días.\n¡Gracias por su preferencia!';
 
     const phone = clientPhone.replace(/[^0-9]/g, '');
@@ -180,9 +211,15 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="">-- Nuevo cliente --</option>
                 {clients.map((c: any) => (
-                  <option key={c.id} value={c.id}>{c.name}{c.rif ? ` · ${c.rif}` : ''}</option>
+                  <option key={c.id} value={c.id}>{c.name}{c.rif ? ` · ${c.rif}` : ''}{c.isRevendedor ? ' 🔄' : ''}</option>
                 ))}
               </select>
+              {clientIsRevendedor && (
+                <div className="mt-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+                  Cliente revendedor — Descuento sobre ganancia: <strong>{clientDiscountRevendedor}%</strong>
+                  <span className="block text-xs text-amber-600 mt-0.5">Utilidad mínima requerida: 15%</span>
+                </div>
+              )}
             </div>
           )}
 
@@ -212,6 +249,18 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
               <option value="divisas">Divisas</option>
             </select>
           </div>
+
+          {paymentMethod === 'bs' && (
+            <label className="flex items-center gap-2 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={hideIva}
+                onChange={(e) => setHideIva(e.target.checked)}
+                className="w-4 h-4"
+              />
+              <span className="text-sm text-gray-700">Ocultar IVA en el presupuesto</span>
+            </label>
+          )}
 
           {loadingRates ? (
             <div className="flex items-center gap-2 text-sm text-gray-500">
@@ -289,7 +338,11 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
                     <p className="text-sm text-gray-500">Cantidad: {item.quantity}</p>
                     {paymentMethod === 'bs' ? (
                       <div className="mt-1 space-y-0.5">
-                        <p className="text-sm text-gray-600">P/U: Bs {formatBs(item.pricing.salePriceBs + item.pricing.ivaAmount)} <span className="text-xs text-gray-400">(+IVA 16%)</span></p>
+                        {hideIva ? (
+                          <p className="text-sm text-gray-600">P/U: Bs {formatBs(item.pricing.salePriceBs)}</p>
+                        ) : (
+                          <p className="text-sm text-gray-600">P/U: Bs {formatBs(item.pricing.salePriceBs + item.pricing.ivaAmount)} <span className="text-xs text-gray-400">(+IVA 16%)</span></p>
+                        )}
                         <p className="text-sm font-semibold text-blue-600">Subtotal: Bs {formatBs(item.pricing.totalBs)}</p>
                       </div>
                     ) : (

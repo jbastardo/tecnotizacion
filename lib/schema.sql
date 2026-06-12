@@ -55,6 +55,8 @@ CREATE TABLE IF NOT EXISTS clients (
   name VARCHAR(255) NOT NULL,
   phone VARCHAR(50),
   email VARCHAR(255),
+  is_revendedor BOOLEAN DEFAULT FALSE,
+  discount_revendedor DECIMAL(5,2) DEFAULT 0,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -74,6 +76,7 @@ CREATE TABLE IF NOT EXISTS quotes (
   status VARCHAR(50) DEFAULT 'draft',
   total_usd DECIMAL(10,2),
   total_bs DECIMAL(12,2),
+  hide_iva BOOLEAN DEFAULT FALSE,
   notes TEXT,
   items_data JSONB DEFAULT '[]',
   rates_data JSONB DEFAULT '{}',

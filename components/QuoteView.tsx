@@ -19,6 +19,7 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
   const items: any[] = quote.items || quote.items_data || [];
   const totals = quote.totals || { usd: quote.totalUsd || 0, bs: quote.totalBs || 0 };
   const rates = quote.rates || quote.rates_data || {};
+  const hideIva = quote.hideIva || false;
   const createdAt = quote.createdAt
     ? new Date(quote.createdAt).toLocaleDateString('es-VE')
     : quote.created_at
@@ -44,7 +45,11 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
         const p = item.pricing || {};
         msg += `${i + 1}. ${name}\n   Cant: ${qty}\n`;
         if (quote.paymentMethod === 'bs') {
-          msg += `   P/U: Bs ${formatBs((p.salePriceBs || 0) + (p.ivaAmount || 0))}\n`;
+          if (!hideIva) {
+            msg += `   P/U: Bs ${formatBs((p.salePriceBs || 0) + (p.ivaAmount || 0))}\n`;
+          } else {
+            msg += `   P/U: Bs ${formatBs(p.salePriceBs || 0)}\n`;
+          }
           msg += `   Subtotal: Bs ${formatBs(p.totalBs || 0)}\n\n`;
         } else {
           msg += `   P/U: $${formatUsd(p.salePriceUsd || 0)}\n`;
@@ -57,6 +62,7 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
     msg += quote.paymentMethod === 'bs'
       ? `*TOTAL: Bs ${formatBs(totals.bs)}*\n`
       : `*TOTAL: $${formatUsd(totals.usd)}*\n`;
+    if (!hideIva && quote.paymentMethod === 'bs') msg += 'Precios incluyen IVA 16%\n';
     msg += `\nPresupuesto válido por 7 días.\n¡Gracias por su preferencia!`;
     return msg;
   };
@@ -114,6 +120,9 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
           {quote.paymentMethod === 'bs' && rates?.bcv > 0 && (
             <p className="text-blue-100 text-sm">Tasa BCV: Bs {Number(rates.bcv).toFixed(2)}</p>
           )}
+          {hideIva && quote.paymentMethod === 'bs' && (
+            <p className="text-blue-100 text-sm">IVA no visible en este presupuesto</p>
+          )}
         </div>
       </div>
 
@@ -137,10 +146,18 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
                       <div className="text-right">
                         {quote.paymentMethod === 'bs' ? (
                           <>
-                            <p className="text-sm text-gray-500">
-                              P/U: Bs {formatBs((p.salePriceBs || 0) + (p.ivaAmount || 0))}
-                            </p>
-                            <p className="text-xs text-gray-400">(+IVA 16%)</p>
+                            {!hideIva ? (
+                              <>
+                                <p className="text-sm text-gray-500">
+                                  P/U: Bs {formatBs((p.salePriceBs || 0) + (p.ivaAmount || 0))}
+                                </p>
+                                <p className="text-xs text-gray-400">(+IVA 16%)</p>
+                              </>
+                            ) : (
+                              <p className="text-sm text-gray-500">
+                                P/U: Bs {formatBs(p.salePriceBs || 0)}
+                              </p>
+                            )}
                             <p className="font-bold text-blue-600">Bs {formatBs(p.totalBs || 0)}</p>
                           </>
                         ) : (

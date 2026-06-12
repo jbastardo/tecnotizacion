@@ -13,7 +13,7 @@ export default function ClientManager({ onBack }: ClientManagerProps) {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [editForm, setEditForm] = useState<any>({});
   const [showAdd, setShowAdd] = useState(false);
-  const [newClient, setNewClient] = useState({ rif: '', name: '', phone: '', email: '' });
+  const [newClient, setNewClient] = useState({ rif: '', name: '', phone: '', email: '', isRevendedor: false, discountRevendedor: 0 });
 
   useEffect(() => {
     fetchClients();
@@ -40,7 +40,7 @@ export default function ClientManager({ onBack }: ClientManagerProps) {
       });
 
       if (res.ok) {
-        setNewClient({ rif: '', name: '', phone: '', email: '' });
+        setNewClient({ rif: '', name: '', phone: '', email: '', isRevendedor: false, discountRevendedor: 0 });
         setShowAdd(false);
         fetchClients();
       } else {
@@ -55,7 +55,7 @@ export default function ClientManager({ onBack }: ClientManagerProps) {
 
   const startEdit = (client: any) => {
     setEditingId(client.id);
-    setEditForm({ rif: client.rif, name: client.name, phone: client.phone || '', email: client.email || '' });
+    setEditForm({ rif: client.rif, name: client.name, phone: client.phone || '', email: client.email || '', isRevendedor: client.isRevendedor || false, discountRevendedor: client.discountRevendedor || 0 });
   };
 
   const cancelEdit = () => {
@@ -151,6 +151,31 @@ export default function ClientManager({ onBack }: ClientManagerProps) {
               placeholder="Email"
             />
           </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={newClient.isRevendedor}
+              onChange={(e) => setNewClient({ ...newClient, isRevendedor: e.target.checked, discountRevendedor: e.target.checked ? newClient.discountRevendedor : 0 })}
+              className="w-4 h-4"
+            />
+            <span className="text-sm font-medium text-gray-700">Revendedor</span>
+          </label>
+          {newClient.isRevendedor && (
+            <div>
+              <label className="block text-xs text-gray-500 mb-1">Descuento sobre ganancia (%)</label>
+              <input
+                type="number"
+                value={newClient.discountRevendedor || ''}
+                onChange={(e) => setNewClient({ ...newClient, discountRevendedor: parseFloat(e.target.value) || 0 })}
+                className="w-full px-3 py-2 border rounded-lg"
+                placeholder="0"
+                min="0"
+                max="70"
+                step="0.01"
+              />
+              <p className="text-xs text-gray-400 mt-1">Utilidad mínima: 15%. No se permite vender con menos.</p>
+            </div>
+          )}
           <div className="flex gap-2">
             <button onClick={addClient} className="flex-1 bg-blue-600 text-white py-2 rounded-lg flex items-center justify-center gap-2">
               <Save className="w-4 h-4" /> Guardar
@@ -200,6 +225,30 @@ export default function ClientManager({ onBack }: ClientManagerProps) {
                       placeholder="Email"
                     />
                   </div>
+                  <label className="flex items-center gap-2 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={editForm.isRevendedor || false}
+                      onChange={(e) => setEditForm({ ...editForm, isRevendedor: e.target.checked, discountRevendedor: e.target.checked ? editForm.discountRevendedor : 0 })}
+                      className="w-4 h-4"
+                    />
+                    <span className="text-sm font-medium text-gray-700">Revendedor</span>
+                  </label>
+                  {(editForm.isRevendedor) && (
+                    <div>
+                      <label className="block text-xs text-gray-500 mb-1">Descuento sobre ganancia (%)</label>
+                      <input
+                        type="number"
+                        value={editForm.discountRevendedor || ''}
+                        onChange={(e) => setEditForm({ ...editForm, discountRevendedor: parseFloat(e.target.value) || 0 })}
+                        className="w-full px-3 py-2 border rounded-lg"
+                        placeholder="0"
+                        min="0"
+                        max="70"
+                        step="0.01"
+                      />
+                    </div>
+                  )}
                   <div className="flex gap-2">
                     <button onClick={saveEdit} className="flex-1 bg-blue-600 text-white py-2 rounded-lg flex items-center justify-center gap-2">
                       <Save className="w-4 h-4" /> Guardar
@@ -212,7 +261,10 @@ export default function ClientManager({ onBack }: ClientManagerProps) {
               ) : (
                 <div className="flex justify-between items-center">
                   <div>
-                    <h3 className="font-semibold text-gray-800">{c.name}</h3>
+                    <h3 className="font-semibold text-gray-800">
+                      {c.name}
+                      {c.isRevendedor && <span className="ml-2 px-2 py-0.5 bg-amber-100 text-amber-700 text-xs rounded-full font-medium">Revendedor {c.discountRevendedor > 0 ? `-${c.discountRevendedor}%` : ''}</span>}
+                    </h3>
                     <p className="text-sm text-gray-500">RIF: {c.rif}</p>
                     <p className="text-sm text-gray-500">{c.phone || 'Sin teléfono'} · {c.email || 'Sin email'}</p>
                   </div>

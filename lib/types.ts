@@ -15,6 +15,8 @@ export interface Client {
   name: string;
   phone?: string;
   email?: string;
+  isRevendedor: boolean;
+  discountRevendedor: number;
   createdAt?: string;
 }
 
@@ -54,6 +56,7 @@ export interface Quote {
   status: 'draft' | 'sent' | 'approved' | 'rejected';
   totalUsd: number;
   totalBs: number;
+  hideIva: boolean;
   notes?: string;
   items?: QuoteItem[];
   rates?: Rates;

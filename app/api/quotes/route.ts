@@ -13,6 +13,7 @@ function mapRow(row: any) {
     status: row.status,
     totalUsd: parseFloat(row.total_usd) || 0,
     totalBs: parseFloat(row.total_bs) || 0,
+    hideIva: row.hide_iva || false,
     notes: row.notes,
     items: row.items_data || [],
     rates: row.rates_data || {},
@@ -28,7 +29,7 @@ export async function GET() {
   try {
     const result = await query(
       `SELECT id, quote_number, client_name, client_phone, client_email, payment_method,
-       status, total_usd, total_bs, notes, items_data, rates_data, created_at, updated_at
+       status, total_usd, total_bs, hide_iva, notes, items_data, rates_data, created_at, updated_at
        FROM quotes WHERE tenant_id = $1 ORDER BY created_at DESC`,
       [session.tenantId]
     );
@@ -42,7 +43,7 @@ export async function GET() {
            FROM quotes WHERE tenant_id = $1 ORDER BY created_at DESC`,
           [session.tenantId]
         );
-        return NextResponse.json(result.rows.map((r: any) => mapRow({ ...r, quote_number: null })));
+        return NextResponse.json(result.rows.map((r: any) => mapRow({ ...r, quote_number: null, hide_iva: false })));
       } catch { return NextResponse.json([]); }
     }
     console.error('Error fetching quotes:', error);
@@ -56,15 +57,15 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { clientName, clientPhone, clientEmail, paymentMethod, totalUsd, totalBs, notes, items, rates, status } = body;
+    const { clientName, clientPhone, clientEmail, paymentMethod, totalUsd, totalBs, hideIva, notes, items, rates, status } = body;
 
     if (!clientName) return NextResponse.json({ error: 'clientName required' }, { status: 400 });
 
     const result = await query(
-      `INSERT INTO quotes (tenant_id, client_name, client_phone, client_email, payment_method, total_usd, total_bs, notes, items_data, rates_data, status)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
-       RETURNING id, quote_number, client_name, client_phone, client_email, payment_method, status, total_usd, total_bs, notes, items_data, rates_data, created_at, updated_at`,
-      [session.tenantId, clientName, clientPhone || null, clientEmail || null, paymentMethod, totalUsd || 0, totalBs || 0, notes || null, JSON.stringify(items || []), JSON.stringify(rates || {}), status || 'draft']
+      `INSERT INTO quotes (tenant_id, client_name, client_phone, client_email, payment_method, total_usd, total_bs, hide_iva, notes, items_data, rates_data, status)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+       RETURNING id, quote_number, client_name, client_phone, client_email, payment_method, status, total_usd, total_bs, hide_iva, notes, items_data, rates_data, created_at, updated_at`,
+      [session.tenantId, clientName, clientPhone || null, clientEmail || null, paymentMethod, totalUsd || 0, totalBs || 0, hideIva || false, notes || null, JSON.stringify(items || []), JSON.stringify(rates || {}), status || 'draft']
     );
 
     return NextResponse.json(mapRow(result.rows[0]), { status: 201 });
@@ -82,7 +83,7 @@ export async function PUT(request: Request) {
     const { id, status } = await request.json();
     const result = await query(
       `UPDATE quotes SET status = $1, updated_at = NOW() WHERE id = $2 AND tenant_id = $3
-       RETURNING id, quote_number, client_name, client_phone, client_email, payment_method, status, total_usd, total_bs, notes, items_data, rates_data, created_at, updated_at`,
+       RETURNING id, quote_number, client_name, client_phone, client_email, payment_method, status, total_usd, total_bs, hide_iva, notes, items_data, rates_data, created_at, updated_at`,
       [status, id, session.tenantId]
     );
     if (result.rows.length === 0) return NextResponse.json({ error: 'Not found' }, { status: 404 });
