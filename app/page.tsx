@@ -89,7 +89,7 @@ export default function Home() {
         {currentView === 'home' && (
           <div className="space-y-4 mt-2">
             {/* Primary action - full width */}
-            <button onClick={() => setCurrentView('builder')}
+            <button onClick={() => { fetchProducts(); fetchClients(); setCurrentView('builder'); }}
               className="w-full bg-blue-600 text-white p-5 rounded-xl shadow-md hover:bg-blue-700 transition-colors flex items-center gap-4">
               <FileText className="w-10 h-10 text-blue-200 flex-shrink-0" />
               <div className="text-left">
@@ -207,17 +207,17 @@ export default function Home() {
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 shadow-lg">
         <div className="max-w-4xl mx-auto flex justify-around p-2">
           {[
-            { view: 'home', label: 'Inicio', icon: (
+            { view: 'home' as View, label: 'Inicio', icon: (
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />
               </svg>
-            )},
-            { view: 'builder', label: 'Nuevo', icon: <Plus className="w-6 h-6" /> },
-            { view: 'history', label: 'Presupuestos', icon: <ClipboardList className="w-6 h-6" /> },
-            { view: 'productList', label: 'Productos', icon: <Package className="w-6 h-6" /> },
-            { view: 'clients', label: 'Clientes', icon: <Users className="w-6 h-6" /> },
-          ].map(({ view, label, icon }) => (
-            <button key={view} onClick={() => setCurrentView(view as View)}
+            ), action: () => setCurrentView('home') },
+            { view: 'builder' as View, label: 'Nuevo', icon: <Plus className="w-6 h-6" />, action: () => { fetchProducts(); fetchClients(); setCurrentView('builder'); } },
+            { view: 'history' as View, label: 'Presupuestos', icon: <ClipboardList className="w-6 h-6" />, action: () => setCurrentView('history') },
+            { view: 'productList' as View, label: 'Productos', icon: <Package className="w-6 h-6" />, action: () => { fetchProducts(); setCurrentView('productList'); } },
+            { view: 'clients' as View, label: 'Clientes', icon: <Users className="w-6 h-6" />, action: () => { fetchClients(); setCurrentView('clients'); } },
+          ].map(({ view, label, icon, action }) => (
+            <button key={view} onClick={action}
               className={`flex flex-col items-center gap-0.5 px-2 py-1 rounded-lg ${
                 currentView === view ? 'text-blue-600' : 'text-gray-500'
               }`}>
