@@ -5,6 +5,7 @@ export interface PricingInput {
   profitMargin: number;
   bcvRate: number;
   promedioRate: number;
+  discountRevendedor?: number;
 }
 
 export interface PricingResult {
@@ -20,18 +21,39 @@ export interface PricingResult {
   bcvEquivalent: number;
   utilidadBs: number;
   tasaEfectiva: number;
+  effectiveMargin: number;
+}
+
+export interface MarginValidation {
+  valid: boolean;
+  effectiveMargin: number;
+  minRequired: number;
+  originalMargin: number;
+  discount: number;
+}
+
+export function validateMargin(profitMargin: number, discountRevendedor: number): MarginValidation {
+  const effectiveMargin = profitMargin - discountRevendedor;
+  const minRequired = 15;
+  return {
+    valid: effectiveMargin >= minRequired,
+    effectiveMargin,
+    minRequired,
+    originalMargin: profitMargin,
+    discount: discountRevendedor,
+  };
 }
 
 export function calculatePricing(input: PricingInput): PricingResult {
-  const { costUsd, quantity, paymentMethod, profitMargin, bcvRate, promedioRate } = input;
+  const { costUsd, quantity, paymentMethod, profitMargin, bcvRate, promedioRate, discountRevendedor } = input;
 
-  const marginDecimal = profitMargin / 100;
+  const effectiveMargin = discountRevendedor ? profitMargin - discountRevendedor : profitMargin;
+  const marginDecimal = effectiveMargin / 100;
   const salePriceUsd = costUsd / (1 - marginDecimal);
 
   if (paymentMethod === 'bs') {
     const tasaCompra = promedioRate;
     const tasaVenta = promedioRate;
-
     const costBs = costUsd * tasaCompra;
     const salePriceBs = salePriceUsd * tasaVenta;
     const ivaAmount = salePriceBs * 0.16;
@@ -53,6 +75,7 @@ export function calculatePricing(input: PricingInput): PricingResult {
       bcvEquivalent: bcvEquivalent * quantity,
       utilidadBs,
       tasaEfectiva,
+      effectiveMargin,
     };
   }
 
@@ -69,6 +92,7 @@ export function calculatePricing(input: PricingInput): PricingResult {
     bcvEquivalent: 0,
     utilidadBs: 0,
     tasaEfectiva: 0,
+    effectiveMargin,
   };
 }
 

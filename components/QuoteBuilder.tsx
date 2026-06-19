@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { ArrowLeft, Plus, Trash2, Send, Loader2, CheckCircle, Percent } from 'lucide-react';
-import { calculatePricing, formatBs, formatUsd } from '@/lib/pricing';
+import { calculatePricing, validateMargin, formatBs, formatUsd } from '@/lib/pricing';
 
 interface QuoteBuilderProps {
   products: any[];
@@ -26,6 +26,8 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
   const [productSearch, setProductSearch] = useState('');
   const [showProductList, setShowProductList] = useState(false);
   const [discountPercent, setDiscountPercent] = useState('0');
+  const [clientIsRevendedor, setClientIsRevendedor] = useState(false);
+  const [clientDiscountRevendedor, setClientDiscountRevendedor] = useState(0);
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -51,7 +53,15 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
   useEffect(() => {
     if (selectedClientId) {
       const client = clients.find((c: any) => c.id === selectedClientId);
-      if (client) { setClientName(client.name); setClientPhone(client.phone || ''); }
+      if (client) {
+        setClientName(client.name);
+        setClientPhone(client.phone || '');
+        setClientIsRevendedor(client.isRevendedor || false);
+        setClientDiscountRevendedor(client.discountRevendedor || 0);
+      }
+    } else {
+      setClientIsRevendedor(false);
+      setClientDiscountRevendedor(0);
     }
   }, [selectedClientId, clients]);
 
@@ -77,9 +87,21 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
     if (!product) return;
     if (paymentMethod === 'bs' && activePromedio === 0) { alert('Las tasas aun no cargaron'); return; }
     const qty = Math.max(1, parseInt(quantity) || 1);
+    const discount = clientIsRevendedor ? clientDiscountRevendedor : 0;
+    const profitMargin = product.profitMargin || 45;
+
+    if (discount > 0) {
+      const validation = validateMargin(profitMargin, discount);
+      if (!validation.valid) {
+        alert(`No es posible aplicar ${discount}% de descuento. El margen original es ${profitMargin}% y el descuento dejaria la utilidad en ${validation.effectiveMargin}%, por debajo del minimo del ${validation.minRequired}%.`);
+        return;
+      }
+    }
+
     const pricing = calculatePricing({
       costUsd: product.costUsd, quantity: qty, paymentMethod,
-      profitMargin: product.profitMargin || 45, bcvRate: activeBcv, promedioRate: activePromedio,
+      profitMargin, bcvRate: activeBcv, promedioRate: activePromedio,
+      discountRevendedor: discount,
     });
     setItems([...items, { id: Date.now().toString(), product, quantity: qty, pricing }]);
     setSelectedProduct(''); setQuantity('1');
@@ -146,6 +168,9 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
     if (paymentMethod === 'bs') {
       message += `Tasa BCV: Bs ${activeBcv.toFixed(2)}\n`;
     }
+    if (clientIsRevendedor && clientDiscountRevendedor > 0) {
+      message += `Descuento revendedor: ${clientDiscountRevendedor}%\n`;
+    }
     message += '\n*PRODUCTOS:*\n\n';
 
     items.forEach((item, i) => {
@@ -207,7 +232,7 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="">-- Nuevo cliente --</option>
                 {clients.map((c: any) => (
-                  <option key={c.id} value={c.id}>{c.name}{c.rif ? ` · ${c.rif}` : ''}</option>
+                  <option key={c.id} value={c.id}>{c.name}{c.rif ? ` · ${c.rif}` : ''}{c.isRevendedor ? ' (R)' : ''}</option>
                 ))}
               </select>
             </div>
@@ -216,15 +241,22 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Cliente *</label>
             <input type="text" value={clientName}
-              onChange={(e) => { setClientName(e.target.value); setSelectedClientId(''); }}
+              onChange={(e) => { setClientName(e.target.value); setSelectedClientId(''); setClientIsRevendedor(false); setClientDiscountRevendedor(0); }}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Nombre completo" required />
           </div>
 
+          {clientIsRevendedor && (
+            <div className="px-3 py-2 bg-amber-50 border border-amber-200 rounded-lg text-sm text-amber-800">
+              Cliente revendedor — Descuento sobre ganancia: <strong>{clientDiscountRevendedor}%</strong>
+              <span className="block text-xs text-amber-600 mt-0.5">Utilidad minima requerida: 15%</span>
+            </div>
+          )}
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Telefono</label>
             <input type="tel" value={clientPhone}
-              onChange={(e) => { setClientPhone(e.target.value); setSelectedClientId(''); }}
+              onChange={(e) => { setClientPhone(e.target.value); setSelectedClientId(''); setClientIsRevendedor(false); setClientDiscountRevendedor(0); }}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="584121234567" />
           </div>
@@ -310,7 +342,11 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
                 <div className="flex justify-between items-start">
                   <div className="flex-1">
                     <h4 className="font-semibold text-gray-800">{item.product.name}</h4>
-                    <p className="text-sm text-gray-500">Cantidad: {item.quantity}</p>
+                    <p className="text-sm text-gray-500">Cantidad: {item.quantity}
+                      {clientIsRevendedor && clientDiscountRevendedor > 0 && (
+                        <span className="text-amber-600 ml-2">· Utilidad: {item.pricing.effectiveMargin}%</span>
+                      )}
+                    </p>
                     {paymentMethod === 'bs' ? (
                       <div className="mt-1 space-y-0.5">
                         <p className="text-sm text-gray-600">P/U: Bs {formatBs(item.pricing.salePriceBs + item.pricing.ivaAmount)} <span className="text-xs text-gray-400">(+IVA 16%)</span></p>
