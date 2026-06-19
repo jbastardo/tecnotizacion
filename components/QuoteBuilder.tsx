@@ -147,7 +147,9 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clientName, clientPhone, paymentMethod,
-          totalUsd: discountUsd || totals.usd, totalBs: discountBs || totals.bs, status,
+          totalUsd: discountPct > 0 ? finalUsd : totals.usd,
+          totalBs: discountPct > 0 ? finalBs : totals.bs,
+          status,
           discount: discountPct > 0 ? discountPct : undefined,
           originalTotalUsd: discountPct > 0 ? totals.usd : undefined,
           originalTotalBs: discountPct > 0 ? totals.bs : undefined,
