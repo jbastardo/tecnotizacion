@@ -135,18 +135,18 @@ export default function ProductList({ onBack }: ProductListProps) {
               {editingId === p.id ? (
                 <div className="space-y-3">
                   <input type="text" value={editForm.name} onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg" placeholder="Nombre" />
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 font-medium" placeholder="Nombre" />
                   <input type="text" value={editForm.sku} onChange={(e) => setEditForm({ ...editForm, sku: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg" placeholder="SKU (código)" />
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 font-medium" placeholder="SKU (codigo)" />
                   <textarea value={editForm.description} onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg" placeholder="Descripción" rows={2} />
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900" placeholder="Descripcion" rows={2} />
                   <div className="grid grid-cols-3 gap-2">
                     <input type="number" value={editForm.costUsd} onChange={(e) => setEditForm({ ...editForm, costUsd: parseFloat(e.target.value) })}
-                      className="px-3 py-2 border rounded-lg" placeholder="Costo" step="0.01" />
+                      className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 font-medium" placeholder="Costo" step="0.01" />
                     <input type="number" value={editForm.profitMargin} onChange={(e) => setEditForm({ ...editForm, profitMargin: parseFloat(e.target.value) })}
-                      className="px-3 py-2 border rounded-lg" placeholder="Margen %" />
+                      className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 font-medium" placeholder="Margen %" />
                     <input type="text" value={editForm.category} onChange={(e) => setEditForm({ ...editForm, category: e.target.value })}
-                      className="px-3 py-2 border rounded-lg" placeholder="Categoría" />
+                      className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 font-medium" placeholder="Categoria" />
                   </div>
                   <div className="flex gap-2">
                     <button onClick={saveEdit} className="flex-1 bg-blue-600 text-white py-2 rounded-lg flex items-center justify-center gap-2">
@@ -172,9 +172,9 @@ export default function ProductList({ onBack }: ProductListProps) {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
                         <div className="min-w-0">
-                          <h3 className="font-semibold text-gray-800 truncate">{p.name}</h3>
-                          {p.category && <p className="text-xs text-gray-400">{p.category}</p>}
-                          <p className="text-sm text-gray-600 mt-1">
+                          <h3 className="font-semibold text-gray-900 truncate">{p.name}</h3>
+                          {p.category && <p className="text-xs text-gray-500">{p.category}</p>}
+                          <p className="text-sm text-gray-800 font-medium mt-1">
                             Costo: ${p.costUsd.toFixed(2)}
                           </p>
                         </div>

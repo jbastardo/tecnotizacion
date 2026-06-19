@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Loader2 } from 'lucide-react';
+import { Loader2, Fingerprint } from 'lucide-react';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -10,8 +10,14 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [rememberMe, setRememberMe] = useState(true);
 
   const [form, setForm] = useState({ email: '', password: '', name: '', slug: '' });
+
+  useEffect(() => {
+    const stored = localStorage.getItem('tecno_remember');
+    if (stored) setRememberMe(true);
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,7 +29,7 @@ export default function LoginPage() {
       const res = await fetch('/api/auth', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action: mode, ...form }),
+        body: JSON.stringify({ action: mode, rememberMe, ...form }),
       });
 
       const data = await res.json();
@@ -34,11 +40,14 @@ export default function LoginPage() {
         setSuccess(data.message);
         setMode('login');
       } else {
+        if (rememberMe) {
+          localStorage.setItem('tecno_remember', '1');
+        }
         router.push('/');
         router.refresh();
       }
     } catch {
-      setError('Error de conexión');
+      setError('Error de conexion');
     } finally {
       setLoading(false);
     }
@@ -97,11 +106,24 @@ export default function LoginPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1 text-left">Contrasena</label>
             <input type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
               placeholder="••••••••" required minLength={6} />
           </div>
+
+          <label className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="checkbox"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+            />
+            <span className="text-sm text-gray-600 flex items-center gap-1">
+              <Fingerprint className="w-4 h-4" />
+              Recordarme en este dispositivo
+            </span>
+          </label>
 
           <button type="submit" disabled={loading}
             className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-colors flex items-center justify-center gap-2 disabled:opacity-60">

@@ -9,7 +9,7 @@ function hashPassword(password: string): string {
 
 export async function POST(request: Request) {
   try {
-    const { action, email, password, name, slug } = await request.json();
+    const { action, email, password, name, slug, rememberMe } = await request.json();
 
     if (action === 'login') {
       const result = await query(
@@ -26,9 +26,12 @@ export async function POST(request: Request) {
       const user = result.rows[0];
       const sessionToken = crypto.randomUUID();
 
+      const maxAge = rememberMe ? 60 * 60 * 24 * 30 : 60 * 60 * 24;
+      const sessionExpiry = rememberMe ? "INTERVAL '30 days'" : "INTERVAL '24 hours'";
+
       await query(
         `INSERT INTO sessions (token, user_id, tenant_id, expires_at)
-         VALUES ($1, $2, $3, NOW() + INTERVAL '30 days')`,
+         VALUES ($1, $2, $3, NOW() + ${sessionExpiry})`,
         [sessionToken, user.id, user.tenant_id]
       );
 
@@ -41,7 +44,7 @@ export async function POST(request: Request) {
         httpOnly: true,
         secure: process.env.NODE_ENV === 'production',
         sameSite: 'strict',
-        maxAge: 60 * 60 * 24 * 30,
+        maxAge,
         path: '/',
       });
 
