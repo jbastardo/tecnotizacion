@@ -64,16 +64,16 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
     msg += `━━━━━━━━━━━━━\n`;
     if (quote.paymentMethod === 'bs') {
       if (hasDiscount && originalTotalBs) {
-        msg += `Subtotal: Bs ${formatBs(Number(originalTotalBs))}\n`;
-        msg += `Descuento: ${discount}% (-Bs ${formatBs(Number(originalTotalBs) * (discount / 100))})\n`;
+        msg += `\nPrecio base: Bs ${formatBs(Number(originalTotalBs))}\n`;
+        msg += `Descuento (${discount}%): -Bs ${formatBs(Number(originalTotalBs) * (discount / 100))}\n`;
         msg += `*TOTAL: Bs ${formatBs(totals.bs)}*\n`;
       } else {
         msg += `*TOTAL: Bs ${formatBs(totals.bs)}*\n`;
       }
     } else {
       if (hasDiscount && originalTotalUsd) {
-        msg += `Subtotal: $${formatUsd(Number(originalTotalUsd))}\n`;
-        msg += `Descuento: ${discount}%\n`;
+        msg += `\nPrecio base: $${formatUsd(Number(originalTotalUsd))}\n`;
+        msg += `Descuento (${discount}%): -$${formatUsd(Number(originalTotalUsd) * (discount / 100))}\n`;
         msg += `*TOTAL: $${formatUsd(totals.usd)}*\n`;
       } else {
         msg += `*TOTAL: $${formatUsd(totals.usd)}*\n`;
@@ -175,10 +175,10 @@ export default function QuoteView({ quote, onBack }: QuoteViewProps) {
         )}
 
         <div className="mt-6 pt-4 border-t-2 border-gray-200">
-          {hasDiscount && (
+          {hasDiscount && originalTotalBs && (
             <div className="mb-2 space-y-1">
               <div className="flex justify-between text-sm text-gray-500">
-                <span>Subtotal</span>
+                <span>Precio base</span>
                 <span>
                   {quote.paymentMethod === 'bs'
                     ? `Bs ${formatBs(Number(originalTotalBs))}`

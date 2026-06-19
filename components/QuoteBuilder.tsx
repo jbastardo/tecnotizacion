@@ -208,16 +208,16 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
     message += '━━━━━━━━━━━━━\n';
     if (paymentMethod === 'bs') {
       if (discountPct > 0) {
-        message += `Subtotal: Bs ${formatBs(totals.bs)}\n`;
-        message += `Descuento: ${discountPct}% (-Bs ${formatBs(discountBs)})\n`;
+        message += `\nPrecio base: Bs ${formatBs(totals.bs)}\n`;
+        message += `Descuento (${discountPct}%): -Bs ${formatBs(discountBs)}\n`;
         message += `*TOTAL: Bs ${formatBs(finalBs)}*\n`;
       } else {
         message += `*TOTAL: Bs ${formatBs(totals.bs)}*\n`;
       }
     } else {
       if (discountPct > 0) {
-        message += `Subtotal: $${formatUsd(totals.usd)}\n`;
-        message += `Descuento: ${discountPct}% (-$${formatUsd(discountUsd)})\n`;
+        message += `\nPrecio base: $${formatUsd(totals.usd)}\n`;
+        message += `Descuento (${discountPct}%): -$${formatUsd(discountUsd)}\n`;
         message += `*TOTAL: $${formatUsd(finalUsd)}*\n`;
       } else {
         message += `*TOTAL: $${formatUsd(totals.usd)}*\n`;
@@ -405,7 +405,7 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
             </div>
 
             <div className="flex justify-between items-center mb-1">
-              <span className="text-sm text-gray-600">Subtotal</span>
+              <span className="text-sm text-gray-500">Precio base</span>
               <span className="text-sm font-semibold text-gray-900">
                 {paymentMethod === 'bs' ? `Bs ${formatBs(totals.bs)}` : `$${formatUsd(totals.usd)}`}
               </span>
