@@ -61,6 +61,11 @@ CREATE TABLE IF NOT EXISTS clients (
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- Asegurar columnas en clients (por si la tabla ya existia)
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS rif VARCHAR(20);
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS is_revendedor BOOLEAN DEFAULT FALSE;
+ALTER TABLE clients ADD COLUMN IF NOT EXISTS discount_revendedor DECIMAL(5,2) DEFAULT 0;
+
 -- Quote number sequence
 CREATE SEQUENCE IF NOT EXISTS quotes_number_seq START 1;
 

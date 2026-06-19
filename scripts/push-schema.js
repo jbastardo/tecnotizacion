@@ -2,11 +2,12 @@ const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
 
-require('dotenv').config({ path: '.env.local' });
+// Try .env.local first, fall back to process.env (Railway)
+try { require('dotenv').config({ path: '.env.local' }); } catch {}
 
 async function pushSchema() {
   if (!process.env.DATABASE_URL) {
-    console.error('DATABASE_URL is not defined in .env.local');
+    console.error('DATABASE_URL is not defined');
     process.exit(1);
   }
 
