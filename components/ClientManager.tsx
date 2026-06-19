@@ -125,14 +125,14 @@ export default function ClientManager({ onBack }: ClientManagerProps) {
             type="text"
             value={newClient.rif}
             onChange={(e) => setNewClient({ ...newClient, rif: e.target.value })}
-            className="w-full px-3 py-2 border rounded-lg"
+            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
             placeholder="RIF *"
           />
           <input
             type="text"
             value={newClient.name}
             onChange={(e) => setNewClient({ ...newClient, name: e.target.value })}
-            className="w-full px-3 py-2 border rounded-lg"
+            className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
             placeholder="Nombre *"
           />
           <div className="grid grid-cols-2 gap-2">
@@ -140,14 +140,14 @@ export default function ClientManager({ onBack }: ClientManagerProps) {
               type="tel"
               value={newClient.phone}
               onChange={(e) => setNewClient({ ...newClient, phone: e.target.value })}
-              className="px-3 py-2 border rounded-lg"
-              placeholder="Teléfono"
+              className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
+              placeholder="Telefono"
             />
             <input
               type="email"
               value={newClient.email}
               onChange={(e) => setNewClient({ ...newClient, email: e.target.value })}
-              className="px-3 py-2 border rounded-lg"
+              className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
               placeholder="Email"
             />
           </div>
@@ -167,7 +167,7 @@ export default function ClientManager({ onBack }: ClientManagerProps) {
                 type="number"
                 value={newClient.discountRevendedor || ''}
                 onChange={(e) => setNewClient({ ...newClient, discountRevendedor: parseFloat(e.target.value) || 0 })}
-                className="w-full px-3 py-2 border rounded-lg"
+                className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
                 placeholder="0"
                 min="0"
                 max="70"
@@ -199,14 +199,14 @@ export default function ClientManager({ onBack }: ClientManagerProps) {
                     type="text"
                     value={editForm.rif}
                     onChange={(e) => setEditForm({ ...editForm, rif: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
                     placeholder="RIF"
                   />
                   <input
                     type="text"
                     value={editForm.name}
                     onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
-                    className="w-full px-3 py-2 border rounded-lg"
+                    className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
                     placeholder="Nombre"
                   />
                   <div className="grid grid-cols-2 gap-2">
@@ -214,14 +214,14 @@ export default function ClientManager({ onBack }: ClientManagerProps) {
                       type="tel"
                       value={editForm.phone}
                       onChange={(e) => setEditForm({ ...editForm, phone: e.target.value })}
-                      className="px-3 py-2 border rounded-lg"
-                      placeholder="Teléfono"
+                      className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
+                      placeholder="Telefono"
                     />
                     <input
                       type="email"
                       value={editForm.email}
                       onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                      className="px-3 py-2 border rounded-lg"
+                      className="px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
                       placeholder="Email"
                     />
                   </div>
@@ -241,7 +241,7 @@ export default function ClientManager({ onBack }: ClientManagerProps) {
                         type="number"
                         value={editForm.discountRevendedor || ''}
                         onChange={(e) => setEditForm({ ...editForm, discountRevendedor: parseFloat(e.target.value) || 0 })}
-                        className="w-full px-3 py-2 border rounded-lg"
+                        className="w-full px-3 py-2 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400"
                         placeholder="0"
                         min="0"
                         max="70"
