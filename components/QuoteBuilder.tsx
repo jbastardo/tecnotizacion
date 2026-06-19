@@ -120,6 +120,18 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
   const finalBs = totals.bs - discountBs;
   const finalUsd = totals.usd - discountUsd;
 
+  const minMarginViolation = discountPct > 0 && items.length > 0
+    ? items.find((item) => {
+        const cost = item.pricing.costUsd;
+        const revenue = item.pricing.totalUsd;
+        if (revenue <= 0 || cost <= 0) return false;
+        const discountedRevenue = revenue * (1 - discountPct / 100);
+        if (discountedRevenue <= cost) return true;
+        const effMargin = ((discountedRevenue - (cost / (item.quantity || 1))) / (discountedRevenue / (item.quantity || 1))) * 100;
+        return effMargin < 15;
+      })
+    : undefined;
+
   const saveQuote = async (status: 'draft' | 'sent') => {
     if (!clientName) { alert('Ingresa el nombre del cliente'); return false; }
     if (items.length === 0) { alert('Agrega al menos un producto'); return false; }
@@ -154,11 +166,20 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
     finally { setSaving(false); }
   };
 
-  const handleSave = async () => { const ok = await saveQuote('draft'); if (ok) onSaved(); };
+  const handleSave = async () => {
+    if (minMarginViolation) {
+      alert('El descuento aplicado reduce la ganancia por debajo del 15% minimo. Reduce el descuento para continuar.');
+      return;
+    }
+    const ok = await saveQuote('draft'); if (ok) onSaved(); };
 
   const handleSendWhatsApp = async () => {
     if (!clientName) { alert('Ingresa el nombre del cliente'); return; }
     if (items.length === 0) { alert('Agrega al menos un producto'); return; }
+    if (minMarginViolation) {
+      alert('El descuento aplicado reduce la ganancia por debajo del 15% minimo. Reduce el descuento para continuar.');
+      return;
+    }
 
     let message = '*PRESUPUESTO - TECNOTIZACION*\n';
     message += '━━━━━━━━━━━━━\n\n';
@@ -229,7 +250,7 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Cliente guardado</label>
               <select value={selectedClientId} onChange={(e) => setSelectedClientId(e.target.value)}
-                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+                className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent">
                 <option value="">-- Nuevo cliente --</option>
                 {clients.map((c: any) => (
                   <option key={c.id} value={c.id}>{c.name}{c.rif ? ` · ${c.rif}` : ''}{c.isRevendedor ? ' (R)' : ''}</option>
@@ -242,7 +263,7 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
             <label className="block text-sm font-medium text-gray-700 mb-1">Nombre del Cliente *</label>
             <input type="text" value={clientName}
               onChange={(e) => { setClientName(e.target.value); setSelectedClientId(''); setClientIsRevendedor(false); setClientDiscountRevendedor(0); }}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="Nombre completo" required />
           </div>
 
@@ -257,14 +278,14 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
             <label className="block text-sm font-medium text-gray-700 mb-1">Telefono</label>
             <input type="tel" value={clientPhone}
               onChange={(e) => { setClientPhone(e.target.value); setSelectedClientId(''); setClientIsRevendedor(false); setClientDiscountRevendedor(0); }}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent"
               placeholder="584121234567" />
           </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Forma de Pago *</label>
             <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as any)}
-              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
+              className="w-full px-4 py-3 border border-gray-300 rounded-lg text-gray-900 font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent">
               <option value="bs">Bolivares</option>
               <option value="cash">Efectivo USD</option>
               <option value="binance">Binance (USDT)</option>
@@ -323,7 +344,7 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
             <div>
               <label className="block text-xs text-gray-500 mb-1">Cantidad</label>
               <input type="number" value={quantity} onChange={(e) => setQuantity(e.target.value)}
-                className="w-20 px-3 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center" min="1" />
+                className="w-20 px-3 py-3 border border-gray-300 rounded-lg text-gray-900 font-medium focus:ring-2 focus:ring-blue-500 focus:border-transparent text-center" min="1" />
             </div>
             <button onClick={addItem} disabled={!selectedProduct}
               className="flex-1 bg-green-600 text-white py-3 rounded-lg font-semibold hover:bg-green-700 disabled:bg-gray-300 disabled:cursor-not-allowed flex items-center justify-center gap-2 mt-5">
@@ -375,7 +396,7 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
                 type="number"
                 value={discountPercent}
                 onChange={(e) => setDiscountPercent(e.target.value)}
-                className="w-20 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-center focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                className="w-20 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-center text-gray-900 font-medium focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
                 min="0"
                 max="100"
                 step="0.5"
@@ -385,18 +406,25 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
 
             <div className="flex justify-between items-center mb-1">
               <span className="text-sm text-gray-600">Subtotal</span>
-              <span className="text-sm font-medium text-gray-900">
+              <span className="text-sm font-semibold text-gray-900">
                 {paymentMethod === 'bs' ? `Bs ${formatBs(totals.bs)}` : `$${formatUsd(totals.usd)}`}
               </span>
             </div>
 
             {discountPct > 0 && (
-              <div className="flex justify-between items-center mb-1">
-                <span className="text-sm text-red-600">Descuento ({discountPct}%)</span>
-                <span className="text-sm font-medium text-red-600">
-                  {paymentMethod === 'bs' ? `-Bs ${formatBs(discountBs)}` : `-$${formatUsd(discountUsd)}`}
-                </span>
-              </div>
+              <>
+                <div className="flex justify-between items-center mb-1">
+                  <span className="text-sm text-red-600">Descuento ({discountPct}%)</span>
+                  <span className="text-sm font-semibold text-red-600">
+                    {paymentMethod === 'bs' ? `-Bs ${formatBs(discountBs)}` : `-$${formatUsd(discountUsd)}`}
+                  </span>
+                </div>
+                {minMarginViolation && (
+                  <div className="mb-2 px-3 py-2 bg-red-50 border border-red-200 rounded-lg text-xs text-red-700">
+                    El descuento reduce la ganancia por debajo del 15% minimo requerido. Reduce el descuento para poder enviar.
+                  </div>
+                )}
+              </>
             )}
 
             <div className="flex justify-between items-center mt-2 pt-3 border-t-2 border-gray-200">
@@ -413,13 +441,13 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
 
       {items.length > 0 && clientName && (
         <div className="space-y-3 pb-2">
-          <button onClick={handleSendWhatsApp} disabled={saving}
-            className="w-full bg-green-500 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-600 disabled:opacity-60 flex items-center justify-center gap-2">
+          <button onClick={handleSendWhatsApp} disabled={saving || !!minMarginViolation}
+            className="w-full bg-green-500 text-white py-4 rounded-xl font-bold text-lg hover:bg-green-600 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
             {saving ? <Loader2 className="w-6 h-6 animate-spin" /> : <Send className="w-6 h-6" />}
             Enviar por WhatsApp
           </button>
-          <button onClick={handleSave} disabled={saving}
-            className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-60 flex items-center justify-center gap-2">
+          <button onClick={handleSave} disabled={saving || !!minMarginViolation}
+            className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2">
             {saving ? <Loader2 className="w-5 h-5 animate-spin" /> : <CheckCircle className="w-5 h-5" />}
             Guardar Presupuesto
           </button>
