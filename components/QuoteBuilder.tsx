@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { ArrowLeft, Plus, Trash2, Send, Loader2, CheckCircle } from 'lucide-react';
+import { ArrowLeft, Plus, Trash2, Send, Loader2, CheckCircle, Percent } from 'lucide-react';
 import { calculatePricing, formatBs, formatUsd } from '@/lib/pricing';
 
 interface QuoteBuilderProps {
@@ -25,6 +25,7 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
   const [saving, setSaving] = useState(false);
   const [productSearch, setProductSearch] = useState('');
   const [showProductList, setShowProductList] = useState(false);
+  const [discountPercent, setDiscountPercent] = useState('0');
 
   useEffect(() => {
     const handler = (e: MouseEvent) => {
@@ -74,7 +75,7 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
   const addItem = () => {
     const product = products.find((p: any) => p.id === selectedProduct);
     if (!product) return;
-    if (paymentMethod === 'bs' && activeBcv === 0) { alert('Las tasas aún no cargaron'); return; }
+    if (paymentMethod === 'bs' && activePromedio === 0) { alert('Las tasas aun no cargaron'); return; }
     const qty = Math.max(1, parseInt(quantity) || 1);
     const pricing = calculatePricing({
       costUsd: product.costUsd, quantity: qty, paymentMethod,
@@ -91,6 +92,12 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
     { usd: 0, bs: 0 }
   );
 
+  const discountPct = Math.max(0, Math.min(100, parseFloat(discountPercent) || 0));
+  const discountBs = totals.bs * (discountPct / 100);
+  const discountUsd = totals.usd * (discountPct / 100);
+  const finalBs = totals.bs - discountBs;
+  const finalUsd = totals.usd - discountUsd;
+
   const saveQuote = async (status: 'draft' | 'sent') => {
     if (!clientName) { alert('Ingresa el nombre del cliente'); return false; }
     if (items.length === 0) { alert('Agrega al menos un producto'); return false; }
@@ -106,7 +113,10 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           clientName, clientPhone, paymentMethod,
-          totalUsd: totals.usd, totalBs: totals.bs, status,
+          totalUsd: discountUsd || totals.usd, totalBs: discountBs || totals.bs, status,
+          discount: discountPct > 0 ? discountPct : undefined,
+          originalTotalUsd: discountPct > 0 ? totals.usd : undefined,
+          originalTotalBs: discountPct > 0 ? totals.bs : undefined,
           rates: { bcv: activeBcv, promedio: activePromedio },
           items: items.map((item) => ({
             id: item.id, quantity: item.quantity, pricing: item.pricing,
@@ -118,7 +128,7 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
       const err = await res.json();
       alert('Error al guardar: ' + (err.error || 'Error desconocido'));
       return false;
-    } catch { alert('Error de conexión'); return false; }
+    } catch { alert('Error de conexion'); return false; }
     finally { setSaving(false); }
   };
 
@@ -128,19 +138,20 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
     if (!clientName) { alert('Ingresa el nombre del cliente'); return; }
     if (items.length === 0) { alert('Agrega al menos un producto'); return; }
 
-    let message = '*PRESUPUESTO - TECNOTIZACIÓN*\n';
+    let message = '*PRESUPUESTO - TECNOTIZACION*\n';
     message += '━━━━━━━━━━━━━\n\n';
     message += `Cliente: ${clientName}\n`;
     message += `Fecha: ${new Date().toLocaleDateString('es-VE')}\n`;
-    message += `Pago: ${paymentMethod === 'bs' ? 'Bolívares (BCV)' : paymentMethod === 'cash' ? 'Efectivo USD' : paymentMethod === 'binance' ? 'Binance (USDT)' : 'Divisas'}\n`;
-    if (paymentMethod === 'bs') message += `Tasa BCV: Bs ${activeBcv.toFixed(2)}\n`;
+    message += `Pago: ${paymentMethod === 'bs' ? 'Bolivares' : paymentMethod === 'cash' ? 'Efectivo USD' : paymentMethod === 'binance' ? 'Binance (USDT)' : 'Divisas'}\n`;
+    if (paymentMethod === 'bs') {
+      message += `Tasa BCV: Bs ${activeBcv.toFixed(2)}\n`;
+    }
     message += '\n*PRODUCTOS:*\n\n';
 
     items.forEach((item, i) => {
       message += `${i + 1}. ${item.product.name}\n   Cant: ${item.quantity}\n`;
       if (paymentMethod === 'bs') {
         message += `   P/U: Bs ${formatBs(item.pricing.salePriceBs + item.pricing.ivaAmount)}\n`;
-        message += `   (Bs ${formatBs(item.pricing.salePriceBs)} + IVA 16%)\n`;
         message += `   Subtotal: Bs ${formatBs(item.pricing.totalBs)}\n\n`;
       } else {
         message += `   P/U: $${formatUsd(item.pricing.salePriceUsd)}\n`;
@@ -149,8 +160,24 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
     });
 
     message += '━━━━━━━━━━━━━\n';
-    message += paymentMethod === 'bs' ? `*TOTAL: Bs ${formatBs(totals.bs)}*\n` : `*TOTAL: $${formatUsd(totals.usd)}*\n`;
-    message += '\nPresupuesto válido por 7 días.\n¡Gracias por su preferencia!';
+    if (paymentMethod === 'bs') {
+      if (discountPct > 0) {
+        message += `Subtotal: Bs ${formatBs(totals.bs)}\n`;
+        message += `Descuento: ${discountPct}% (-Bs ${formatBs(discountBs)})\n`;
+        message += `*TOTAL: Bs ${formatBs(finalBs)}*\n`;
+      } else {
+        message += `*TOTAL: Bs ${formatBs(totals.bs)}*\n`;
+      }
+    } else {
+      if (discountPct > 0) {
+        message += `Subtotal: $${formatUsd(totals.usd)}\n`;
+        message += `Descuento: ${discountPct}% (-$${formatUsd(discountUsd)})\n`;
+        message += `*TOTAL: $${formatUsd(finalUsd)}*\n`;
+      } else {
+        message += `*TOTAL: $${formatUsd(totals.usd)}*\n`;
+      }
+    }
+    message += '\nPresupuesto valido por 24 horas.\nGracias por su preferencia!';
 
     const phone = clientPhone.replace(/[^0-9]/g, '');
     const waUrl = phone
@@ -195,7 +222,7 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
           </div>
 
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Telefono</label>
             <input type="tel" value={clientPhone}
               onChange={(e) => { setClientPhone(e.target.value); setSelectedClientId(''); }}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
@@ -206,7 +233,7 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
             <label className="block text-sm font-medium text-gray-700 mb-1">Forma de Pago *</label>
             <select value={paymentMethod} onChange={(e) => setPaymentMethod(e.target.value as any)}
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-              <option value="bs">Bolívares (BCV)</option>
+              <option value="bs">Bolivares</option>
               <option value="cash">Efectivo USD</option>
               <option value="binance">Binance (USDT)</option>
               <option value="divisas">Divisas</option>
@@ -223,11 +250,8 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
             </div>
           ) : (
             <div className="bg-blue-50 p-3 rounded-lg text-sm">
-              <p className="font-medium text-blue-800">Tasas del día:</p>
-              <div className="flex gap-4 mt-1">
-                <span className="text-blue-700">BCV: <strong>Bs {activeBcv.toFixed(2)}</strong></span>
-                <span className="text-blue-700">Promedio: <strong>Bs {activePromedio.toFixed(2)}</strong></span>
-              </div>
+              <p className="font-medium text-blue-800">Tasa BCV del dia:</p>
+              <span className="text-blue-700 text-lg font-bold">Bs {activeBcv.toFixed(2)}</span>
             </div>
           )}
         </div>
@@ -240,7 +264,7 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
             <input type="text" value={productSearch}
               onChange={(e) => { setProductSearch(e.target.value); setShowProductList(true); }}
               onFocus={() => setShowProductList(true)}
-              placeholder="Buscar por nombre, SKU o categoría..."
+              placeholder="Buscar por nombre, SKU o categoria..."
               className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" />
             {showProductList && filteredProducts.length > 0 && (
               <div className="absolute z-10 w-full mt-1 bg-white border border-gray-200 rounded-lg shadow-lg max-h-60 overflow-y-auto">
@@ -306,11 +330,45 @@ export default function QuoteBuilder({ products, clients, onBack, onSaved }: Quo
               </div>
             ))}
           </div>
-          <div className="mt-6 pt-4 border-t-2 border-gray-200">
-            <div className="flex justify-between items-center">
-              <span className="text-lg font-bold text-gray-800">TOTAL:</span>
-              <span className="text-2xl font-bold text-blue-600">
+
+          <div className="mt-4 border-t pt-4">
+            <div className="flex items-center gap-3 mb-3">
+              <Percent className="w-4 h-4 text-gray-500" />
+              <label className="text-sm font-medium text-gray-700">Descuento (%)</label>
+              <input
+                type="number"
+                value={discountPercent}
+                onChange={(e) => setDiscountPercent(e.target.value)}
+                className="w-20 px-2 py-1.5 border border-gray-300 rounded-lg text-sm text-center focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500/20"
+                min="0"
+                max="100"
+                step="0.5"
+              />
+              <span className="text-sm text-gray-400">%</span>
+            </div>
+
+            <div className="flex justify-between items-center mb-1">
+              <span className="text-sm text-gray-600">Subtotal</span>
+              <span className="text-sm font-medium text-gray-900">
                 {paymentMethod === 'bs' ? `Bs ${formatBs(totals.bs)}` : `$${formatUsd(totals.usd)}`}
+              </span>
+            </div>
+
+            {discountPct > 0 && (
+              <div className="flex justify-between items-center mb-1">
+                <span className="text-sm text-red-600">Descuento ({discountPct}%)</span>
+                <span className="text-sm font-medium text-red-600">
+                  {paymentMethod === 'bs' ? `-Bs ${formatBs(discountBs)}` : `-$${formatUsd(discountUsd)}`}
+                </span>
+              </div>
+            )}
+
+            <div className="flex justify-between items-center mt-2 pt-3 border-t-2 border-gray-200">
+              <span className="text-lg font-bold text-gray-800">TOTAL</span>
+              <span className="text-2xl font-bold text-blue-600">
+                {paymentMethod === 'bs'
+                  ? `Bs ${formatBs(discountPct > 0 ? finalBs : totals.bs)}`
+                  : `$${formatUsd(discountPct > 0 ? finalUsd : totals.usd)}`}
               </span>
             </div>
           </div>

@@ -31,7 +31,7 @@ export async function fetchExchangeRates(): Promise<ExchangeRates> {
   for (const api of APIS) {
     try {
       const response = await fetch(api.url, {
-        next: { revalidate: 300 },
+        cache: 'no-store',
       });
 
       if (!response.ok) continue;

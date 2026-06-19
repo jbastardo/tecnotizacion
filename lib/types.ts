@@ -54,6 +54,9 @@ export interface Quote {
   status: 'draft' | 'sent' | 'approved' | 'rejected';
   totalUsd: number;
   totalBs: number;
+  discount?: number;
+  originalTotalUsd?: number;
+  originalTotalBs?: number;
   notes?: string;
   items?: QuoteItem[];
   rates?: Rates;

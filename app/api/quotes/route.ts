@@ -3,6 +3,7 @@ import { query } from '@/lib/db';
 import { getSession } from '@/lib/auth';
 
 function mapRow(row: any) {
+  const rates = row.rates_data || {};
   return {
     id: row.id,
     quoteNumber: row.quote_number || null,
@@ -15,7 +16,10 @@ function mapRow(row: any) {
     totalBs: parseFloat(row.total_bs) || 0,
     notes: row.notes,
     items: row.items_data || [],
-    rates: row.rates_data || {},
+    rates,
+    discount: rates.discount || 0,
+    originalTotalUsd: rates.originalTotalUsd,
+    originalTotalBs: rates.originalTotalBs,
     createdAt: row.created_at,
     updatedAt: row.updated_at,
   };
@@ -56,15 +60,17 @@ export async function POST(request: Request) {
 
   try {
     const body = await request.json();
-    const { clientName, clientPhone, clientEmail, paymentMethod, totalUsd, totalBs, notes, items, rates, status } = body;
+    const { clientName, clientPhone, clientEmail, paymentMethod, totalUsd, totalBs, notes, items, rates, status, discount, originalTotalUsd, originalTotalBs } = body;
 
     if (!clientName) return NextResponse.json({ error: 'clientName required' }, { status: 400 });
+
+    const ratesData = { ...(rates || {}), discount: discount || 0, originalTotalUsd, originalTotalBs };
 
     const result = await query(
       `INSERT INTO quotes (tenant_id, client_name, client_phone, client_email, payment_method, total_usd, total_bs, notes, items_data, rates_data, status)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)
        RETURNING id, quote_number, client_name, client_phone, client_email, payment_method, status, total_usd, total_bs, notes, items_data, rates_data, created_at, updated_at`,
-      [session.tenantId, clientName, clientPhone || null, clientEmail || null, paymentMethod, totalUsd || 0, totalBs || 0, notes || null, JSON.stringify(items || []), JSON.stringify(rates || {}), status || 'draft']
+      [session.tenantId, clientName, clientPhone || null, clientEmail || null, paymentMethod, totalUsd || 0, totalBs || 0, notes || null, JSON.stringify(items || []), JSON.stringify(ratesData), status || 'draft']
     );
 
     return NextResponse.json(mapRow(result.rows[0]), { status: 201 });

@@ -17,6 +17,9 @@ export interface PricingResult {
   subtotalUsd: number;
   totalBs: number;
   totalUsd: number;
+  bcvEquivalent: number;
+  utilidadBs: number;
+  tasaEfectiva: number;
 }
 
 export function calculatePricing(input: PricingInput): PricingResult {
@@ -26,10 +29,16 @@ export function calculatePricing(input: PricingInput): PricingResult {
   const salePriceUsd = costUsd / (1 - marginDecimal);
 
   if (paymentMethod === 'bs') {
-    const costBs = costUsd * promedioRate;
-    const salePriceBs = salePriceUsd * bcvRate;
+    const tasaCompra = promedioRate;
+    const tasaVenta = promedioRate;
+
+    const costBs = costUsd * tasaCompra;
+    const salePriceBs = salePriceUsd * tasaVenta;
     const ivaAmount = salePriceBs * 0.16;
     const totalBs = salePriceBs + ivaAmount;
+    const bcvEquivalent = salePriceUsd * bcvRate;
+    const utilidadBs = (salePriceBs - costBs) * quantity;
+    const tasaEfectiva = bcvRate;
 
     return {
       costUsd: costUsd * quantity,
@@ -41,6 +50,9 @@ export function calculatePricing(input: PricingInput): PricingResult {
       subtotalUsd: salePriceUsd * quantity,
       totalBs: totalBs * quantity,
       totalUsd: salePriceUsd * quantity,
+      bcvEquivalent: bcvEquivalent * quantity,
+      utilidadBs,
+      tasaEfectiva,
     };
   }
 
@@ -54,6 +66,9 @@ export function calculatePricing(input: PricingInput): PricingResult {
     subtotalUsd: salePriceUsd * quantity,
     totalBs: 0,
     totalUsd: salePriceUsd * quantity,
+    bcvEquivalent: 0,
+    utilidadBs: 0,
+    tasaEfectiva: 0,
   };
 }
 
