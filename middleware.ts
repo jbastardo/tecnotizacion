@@ -23,6 +23,14 @@ export function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Allow internal API calls with x-internal-key (for Tutecnotienda)
+  if (pathname.startsWith('/api/')) {
+    const internalKey = request.headers.get('x-internal-key');
+    if (internalKey && internalKey === process.env.API_KEY) {
+      return NextResponse.next();
+    }
+  }
+
   const session = request.cookies.get('session')?.value;
 
   // No session → redirect to login (pages) or 401 (API)
