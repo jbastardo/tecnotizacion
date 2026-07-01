@@ -3,14 +3,6 @@ import { getSession } from '@/lib/auth';
 
 const BASE = 'https://tutecnotienda.com';
 
-async function fetchPage(path: string) {
-  const res = await fetch(BASE + path, {
-    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-  });
-  if (!res.ok) return '';
-  return await res.text();
-}
-
 export async function GET(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
@@ -18,76 +10,74 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const query = (searchParams.get('q') || '').toLowerCase().trim();
 
-  const products: any[] = [];
-  const seen = new Set<string>();
-
   try {
-    for (let page = 1; page <= 5; page++) {
-      const path = page === 1 ? '/productos' : `/productos?page=${page}`;
-      const html = await fetchPage(path);
-      if (!html) break;
+    const res = await fetch(BASE + '/productos', {
+      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Tecnotizacion/1.0)' },
+    });
+    if (!res.ok) return NextResponse.json({ error: 'Could not fetch store' }, { status: 502 });
 
-      // Split by "Vista rápida" - each product card contains this link
-      const cards = html.split('Vista rápida');
-      if (cards.length <= 1) break;
+    const html = await res.text();
 
-      for (let i = 0; i < cards.length - 1; i++) {
-        const block = cards[i];
+    // Extract just the product grid: between the product section and pagination/footer
+    const gridStart = html.indexOf('<h1>Productos</h1>');
+    const gridEnd = html.indexOf('<nav', gridStart > 0 ? gridStart : 0);
+    const grid = gridStart > 0 && gridEnd > gridStart
+      ? html.substring(gridStart, gridEnd)
+      : html;
 
-        // Extract product link
-        const hrefMatch = block.match(/\/p\/([a-z0-9-]+(?:-[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12})?)/i);
-        if (!hrefMatch) continue;
+    const products: any[] = [];
+    const seen = new Set<string>();
 
-        const slug = hrefMatch[0];
-        const linkId = hrefMatch[1];
-        if (seen.has(linkId)) continue;
-        seen.add(linkId);
+    // Extract product names from the grid: <a href="/p/slug">Name</a>
+    // Only match links with actual product content (long enough text)
+    const linkRegex = /<a\s+href="(\/p\/[^"]+)"[^>]*>\s*([^<]{5,})/g;
+    const allLinks: { href: string; text: string }[] = [];
+    let m;
+    while ((m = linkRegex.exec(grid)) !== null) {
+      const text = m[2].replace(/<[^>]+>/g, '').trim();
+      if (text && text.length > 5) {
+        allLinks.push({ href: m[1], text });
+      }
+    }
 
-        // Extract image URL
-        const imgMatch = block.match(/src="([^"]*active_storage[^"]*)"/);
+    // Extract prices from the grid
+    const priceRegex = /US\$\s*([\d,.]+)/g;
+    const allPrices: number[] = [];
+    while ((m = priceRegex.exec(grid)) !== null) {
+      allPrices.push(parseFloat(m[1].replace(/,/g, '')));
+    }
 
-        // Extract price - look for US$ followed by number
-        const priceMatch = block.match(/US\$\s*([\d,.]+)/);
+    // Extract images from the grid
+    const imgRegex = /<img\s+[^>]*src="([^"]*active_storage[^"]*)"[^>]*>/g;
+    const allImages: string[] = [];
+    while ((m = imgRegex.exec(grid)) !== null) {
+      allImages.push(m[1]);
+    }
 
-        // Extract name - look for text right before the link to /p/
-        const nameMatch = block.match(/<a[^>]*href="\/p\/[^"]*"[^>]*>\s*\n?\s*([^\n<]+)/);
-        let name = nameMatch ? nameMatch[1].trim() : '';
+    // Match links with prices by position (both lists are in page order)
+    for (let i = 0; i < allLinks.length && i < allPrices.length; i++) {
+      const link = allLinks[i];
+      const img = i < allImages.length ? allImages[i] : null;
+      const price = allPrices[i];
+      if (!price || seen.has(link.href)) continue;
+      seen.add(link.href);
 
-        if (!priceMatch || !name) continue;
+      // Extract SKU from [brackets]
+      const skuMatch = link.text.match(/\[([A-Z0-9][^\]]{2,})\]/);
+      const sku = skuMatch ? skuMatch[1] : link.href.split('/').pop()?.split('-')[0]?.toUpperCase() || '';
+      const name = link.text.replace(/^\[[^\]]+\]\s*/, '').trim();
 
-        const price = parseFloat(priceMatch[1].replace(/,/g, ''));
-
-        // Extract SKU from [brackets] in name
-        const skuMatch = name.match(/\[([A-Z0-9][^\]]{2,})\]/);
-        const sku = skuMatch ? skuMatch[1] : linkId.split('-')[0]?.toUpperCase() || '';
-
-        // Remove SKU prefix from name
-        name = name.replace(/^\[[^\]]+\]\s*/, '').trim();
-
-        // Filter by query if present
-        if (query && query.length >= 2) {
-          const n = name.toLowerCase();
-          const s = sku.toLowerCase();
-          if (!n.includes(query) && !s.includes(query)) continue;
-        }
-
-        products.push({
-          sku,
-          name,
-          costUsd: price,
-          imageUrl: imgMatch ? imgMatch[1] : null,
-          category: 'Importado',
-        });
-
-        if (query && products.length >= 20) break;
+      if (query && query.length >= 2) {
+        if (!name.toLowerCase().includes(query) && !sku.toLowerCase().includes(query)) continue;
       }
 
-      if (!html.includes('?page=' + (page + 1))) break;
-      if (products.length >= 100) break;
+      products.push({ sku, name, costUsd: price, imageUrl: img, category: 'Importado' });
+      if (query && products.length >= 30) break;
     }
-  } catch (e) {
-    console.error('Store fetch error:', e);
-  }
 
-  return NextResponse.json({ products, total: products.length });
+    return NextResponse.json({ products, total: products.length });
+  } catch (e: any) {
+    console.error('Store error:', e?.message || e);
+    return NextResponse.json({ error: 'Failed to fetch store', products: [], total: 0 }, { status: 500 });
+  }
 }
