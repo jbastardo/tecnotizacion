@@ -1,62 +1,84 @@
 export const dynamic = 'force-dynamic';
 
+function extractCard(block: string) {
+  // Extract product URL slug
+  const hrefMatch = block.match(/\/p\/([a-z0-9-]{30,})/i);
+  if (!hrefMatch) return null;
+
+  // Extract product name from link text
+  const nameMatch = block.match(/<a\s[^>]*href="\/p\/[^"]*"[^>]*>([^<]+)<\/a>/i);
+  if (!nameMatch) return null;
+  const text = nameMatch[1].trim();
+  if (text.length < 5) return null;
+
+  // Extract price
+  const priceMatch = block.match(/US\$\s*([\d,.]+)/);
+  if (!priceMatch) return null;
+
+  // Extract first image
+  const imgMatch = block.match(/<img[^>]+src="([^"]*active_storage[^"]*)"[^>]*>/i);
+
+  // Extract SKU from [brackets]
+  const skuMatch = text.match(/\[([A-Z0-9][^\]]{2,})\]/);
+
+  return {
+    sku: skuMatch ? skuMatch[1] : '',
+    name: text.replace(/^\[[^\]]+\]\s*/, '').trim(),
+    costUsd: parseFloat(priceMatch[1].replace(/,/g, '')),
+    imageUrl: imgMatch ? imgMatch[1] : null,
+  };
+}
+
 export async function GET() {
   try {
-    const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 15000);
-
     const res = await fetch('https://tutecnotienda.com/productos', {
-      signal: controller.signal,
       headers: {
-        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
         'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
         'Accept-Language': 'es,en;q=0.9',
       },
-    }).finally(() => clearTimeout(timeout));
+      signal: AbortSignal.timeout(15000),
+    });
 
-    if (!res.ok) {
-      return Response.json({ error: 'Store status ' + res.status, products: [] });
-    }
+    if (!res.ok) return Response.json({ error: 'Store status ' + res.status, products: [] });
 
     const html = await res.text();
 
-    // Extract all prices
-    const prices: number[] = [];
-    const pr = /US\$\s*([\d,.]+)/g;
-    let m;
-    while ((m = pr.exec(html)) !== null) {
-      prices.push(parseFloat(m[1].replace(/,/g, '')));
-    }
-
-    // Extract all product images (first image of each product card)
-    const images: string[] = [];
-    const ir = /<img[^>]+src="([^"]*active_storage[^"]*)"[^>]*>/gi;
-    while ((m = ir.exec(html)) !== null) {
-      const url = m[1];
-      if (!images.includes(url) && !url.includes('logo')) images.push(url);
-    }
-
-    // Extract product links with visible text
-    const linkRegex = /<a\s[^>]*href="\/p\/([a-z0-9-]{30,})"[^>]*>([^<]+)<\/a>/gi;
+    // Split by "Vista rápida" - each product card has this link
+    const cards = html.split('Vista rápida');
     const products: any[] = [];
-    const seenHrefs = new Set<string>();
-    let idx = 0;
 
-    while ((m = linkRegex.exec(html)) !== null && idx < prices.length) {
-      const slug = m[1];
-      const text = m[2].trim();
-      if (!text || text.length < 5 || seenHrefs.has(slug)) continue;
-      seenHrefs.add(slug);
+    for (let i = 0; i < cards.length - 1 && products.length < 100; i++) {
+      // Look BACKWARDS from the "Vista rápida" marker to find the product data
+      // The card's content is in cards[i], the "Vista rápida" text was at the start of cards[i+1]
+      const section = cards[i];
+      const next = i < cards.length - 1 ? cards[i + 1] : '';
 
-      const skuMatch = text.match(/\[([A-Z0-9][^\]]{2,})\]/);
+      // Extract URL from "Vista rápida" link: /line_items/new?id=slug
+      const slugMatch = next.match(/\/line_items\/new\?id=([a-z0-9-]{30,})/i);
+      if (!slugMatch) continue;
+
+      const slug = slugMatch[1];
+      // Build product URL from slug
+      const productUrl = '/p/' + slug;
+
+      // Find product name in the section - look for text after last [SKU] pattern
+      const nameBlock = section.match(/\[([A-Z0-9][^\]]{2,})\]\s*((?:[A-Za-z0-9\u00C0-\u024F\s\-\/\+\.\,\&\;\:\!\?\(\)\[\]\{\}\#\@\$\%\*\"\'\_\|\\~\`\<\>\^\=\¡\¿\ñ\Ñ\á\é\í\ó\ú\Á\É\Í\Ó\Ú\ü\Ü\°\º\ª]{3,100}))/);
+      const sku = nameBlock ? nameBlock[1] : '';
+      const name = nameBlock ? nameBlock[2].trim() : slug.replace(/-/g, ' ');
+
+      // Price
+      const priceMatch = section.match(/US\$\s*([\d,.]+)/);
+
+      // Image
+      const imgMatch = section.match(/<img[^>]+src="([^"]*active_storage[^"]*)"[^>]*>/i);
+
       products.push({
-        sku: skuMatch ? skuMatch[1] : '',
-        name: text.replace(/^\[[^\]]+\]\s*/, '').trim(),
-        costUsd: prices[idx] || 0,
-        imageUrl: idx < images.length ? images[idx] : null,
+        sku,
+        name,
+        costUsd: priceMatch ? parseFloat(priceMatch[1].replace(/,/g, '')) : 0,
+        imageUrl: imgMatch ? imgMatch[1] : null,
       });
-      idx++;
-      if (products.length >= 100) break;
     }
 
     return Response.json({ products, total: products.length });
