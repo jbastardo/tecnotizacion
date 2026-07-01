@@ -1,15 +1,16 @@
 'use client';
 
 import { useState, useEffect, useCallback } from 'react';
-import { Plus, FileText, Package, Users, ClipboardList, LogOut } from 'lucide-react';
+import { Plus, FileText, Package, Users, ClipboardList, LogOut, ShoppingBag } from 'lucide-react';
 import ProductForm from '@/components/ProductForm';
 import ProductList from '@/components/ProductList';
 import ClientManager from '@/components/ClientManager';
 import QuoteBuilder from '@/components/QuoteBuilder';
 import QuoteView from '@/components/QuoteView';
 import QuoteHistory from '@/components/QuoteHistory';
+import StoreImport from '@/components/StoreImport';
 
-type View = 'home' | 'products' | 'productList' | 'clients' | 'builder' | 'history' | 'viewQuote';
+type View = 'home' | 'products' | 'productList' | 'clients' | 'builder' | 'history' | 'viewQuote' | 'store';
 
 export default function Home() {
   const [currentView, setCurrentView] = useState<View>('home');
@@ -120,6 +121,11 @@ export default function Home() {
                 <Package className="w-9 h-9 text-purple-600" />
                 <span className="font-semibold text-gray-800 text-sm">Ver Productos</span>
               </button>
+              <button onClick={() => setCurrentView('store')}
+                className="bg-white p-5 rounded-xl shadow-md hover:shadow-lg transition-shadow flex flex-col items-center gap-2 col-span-2">
+                <ShoppingBag className="w-9 h-9 text-orange-600" />
+                <span className="font-semibold text-gray-800 text-sm">Importar de Tu Tecno Tienda</span>
+              </button>
             </div>
 
             {/* Summary */}
@@ -200,6 +206,10 @@ export default function Home() {
             quote={viewingQuote}
             onBack={() => setCurrentView('history')}
           />
+        )}
+
+        {currentView === 'store' && (
+          <StoreImport onBack={() => setCurrentView('home')} />
         )}
       </main>
 
