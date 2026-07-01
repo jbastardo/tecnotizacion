@@ -1,88 +1,89 @@
 import { NextResponse } from 'next/server';
 import { getSession } from '@/lib/auth';
 
+const BASE = 'https://tutecnotienda.com';
+
+async function fetchPage(path: string) {
+  const res = await fetch(BASE + path, {
+    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
+  });
+  if (!res.ok) return '';
+  return await res.text();
+}
+
 export async function GET(request: Request) {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
 
   const { searchParams } = new URL(request.url);
-  const query = searchParams.get('q') || '';
-  const pageNum = parseInt(searchParams.get('page') || '1');
+  const query = (searchParams.get('q') || '').toLowerCase().trim();
 
   const products: any[] = [];
   const seen = new Set<string>();
 
   try {
-    for (let page = 1; page <= 3; page++) {
-      const url = page === 1
-        ? 'https://tutecnotienda.com/productos'
-        : `https://tutecnotienda.com/productos?page=${page}`;
+    for (let page = 1; page <= 5; page++) {
+      const path = page === 1 ? '/productos' : `/productos?page=${page}`;
+      const html = await fetchPage(path);
+      if (!html) break;
 
-      const res = await fetch(url, {
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' },
-      });
-      if (!res.ok) break;
+      // Split by "Vista rápida" - each product card contains this link
+      const cards = html.split('Vista rápida');
+      if (cards.length <= 1) break;
 
-      const html = await res.text();
+      for (let i = 0; i < cards.length - 1; i++) {
+        const block = cards[i];
 
-      // Extract product links, images, and prices
-      const linkRegex = /<a[^>]*href="(\/p\/[^"]+)"[^>]*>\s*\n?\s*([^\n<]+)/g;
-      const imgRegex = /<img[^>]*src="([^"]*active_storage[^"]*)"[^>]*>/g;
-      const priceRegex = /US\$\s*([\d,.]+)/g;
+        // Extract product link
+        const hrefMatch = block.match(/\/p\/([a-z0-9-]+(?:-[a-f0-9]{8}(?:-[a-f0-9]{4}){3}-[a-f0-9]{12})?)/i);
+        if (!hrefMatch) continue;
 
-      let linkMatch;
-      const links: { href: string; name: string }[] = [];
-      while ((linkMatch = linkRegex.exec(html)) !== null) {
-        const name = linkMatch[2]?.trim();
-        if (name) links.push({ href: linkMatch[1], name });
-      }
+        const slug = hrefMatch[0];
+        const linkId = hrefMatch[1];
+        if (seen.has(linkId)) continue;
+        seen.add(linkId);
 
-      let imgMatch;
-      const images: string[] = [];
-      while ((imgMatch = imgRegex.exec(html)) !== null) {
-        images.push(imgMatch[1]);
-      }
+        // Extract image URL
+        const imgMatch = block.match(/src="([^"]*active_storage[^"]*)"/);
 
-      let priceMatch;
-      const prices: number[] = [];
-      while ((priceMatch = priceRegex.exec(html)) !== null) {
-        prices.push(parseFloat(priceMatch[1].replace(/,/g, '')));
-      }
+        // Extract price - look for US$ followed by number
+        const priceMatch = block.match(/US\$\s*([\d,.]+)/);
 
-      // Match by position (they appear in the same order)
-      for (let i = 0; i < links.length && i < Math.min(prices.length, images.length); i++) {
-        const link = links[i];
-        const imageUrl = images[i] || null;
-        const price = prices[i] || 0;
+        // Extract name - look for text right before the link to /p/
+        const nameMatch = block.match(/<a[^>]*href="\/p\/[^"]*"[^>]*>\s*\n?\s*([^\n<]+)/);
+        let name = nameMatch ? nameMatch[1].trim() : '';
 
-        if (!price || seen.has(link.href)) continue;
-        seen.add(link.href);
+        if (!priceMatch || !name) continue;
 
-        // Extract SKU from name (text inside [brackets])
-        const skuMatch = link.name.match(/\[([A-Z0-9][^\]]{2,})\]/);
-        const sku = skuMatch ? skuMatch[1] : link.href.split('/').pop()?.split('-')[0]?.toUpperCase() || '';
+        const price = parseFloat(priceMatch[1].replace(/,/g, ''));
 
-        const cleanName = link.name.replace(/^\[[^\]]+\]\s*/, '').trim();
+        // Extract SKU from [brackets] in name
+        const skuMatch = name.match(/\[([A-Z0-9][^\]]{2,})\]/);
+        const sku = skuMatch ? skuMatch[1] : linkId.split('-')[0]?.toUpperCase() || '';
 
-        // Filter by query if provided
+        // Remove SKU prefix from name
+        name = name.replace(/^\[[^\]]+\]\s*/, '').trim();
+
+        // Filter by query if present
         if (query && query.length >= 2) {
-          const q = query.toLowerCase();
-          if (!cleanName.toLowerCase().includes(q) && !sku.toLowerCase().includes(q)) continue;
+          const n = name.toLowerCase();
+          const s = sku.toLowerCase();
+          if (!n.includes(query) && !s.includes(query)) continue;
         }
 
         products.push({
           sku,
-          name: cleanName,
+          name,
           costUsd: price,
-          imageUrl: imageUrl?.startsWith('http') ? imageUrl : `https://tutecnotienda.com${imageUrl}`,
+          imageUrl: imgMatch ? imgMatch[1] : null,
           category: 'Importado',
         });
 
-        if (query && query.length >= 2 && products.length >= 20) break;
+        if (query && products.length >= 20) break;
       }
 
-      if (query && query.length >= 2 && products.length >= 20) break;
-      if (page >= 3) break;
+      if (!html.includes('?page=' + (page + 1))) break;
+      if (products.length >= 100) break;
     }
   } catch (e) {
     console.error('Store fetch error:', e);
