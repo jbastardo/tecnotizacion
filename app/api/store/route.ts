@@ -20,7 +20,7 @@ export async function GET() {
 
     const html = await res.text();
 
-    // Find all prices
+    // Extract all prices
     const prices: number[] = [];
     const pr = /US\$\s*([\d,.]+)/g;
     let m;
@@ -28,8 +28,16 @@ export async function GET() {
       prices.push(parseFloat(m[1].replace(/,/g, '')));
     }
 
-    // Find product names from <a> tags containing product links
-    const linkRegex = /<a\s[^>]*href="\/p\/([a-z0-9-]+[a-z0-9-]{20,})"[^>]*>([^<]+)<\/a>/gi;
+    // Extract all product images (first image of each product card)
+    const images: string[] = [];
+    const ir = /<img[^>]+src="([^"]*active_storage[^"]*)"[^>]*>/gi;
+    while ((m = ir.exec(html)) !== null) {
+      const url = m[1];
+      if (!images.includes(url) && !url.includes('logo')) images.push(url);
+    }
+
+    // Extract product links with visible text
+    const linkRegex = /<a\s[^>]*href="\/p\/([a-z0-9-]{30,})"[^>]*>([^<]+)<\/a>/gi;
     const products: any[] = [];
     const seenHrefs = new Set<string>();
     let idx = 0;
@@ -45,13 +53,13 @@ export async function GET() {
         sku: skuMatch ? skuMatch[1] : '',
         name: text.replace(/^\[[^\]]+\]\s*/, '').trim(),
         costUsd: prices[idx] || 0,
-        imageUrl: null,
+        imageUrl: idx < images.length ? images[idx] : null,
       });
       idx++;
       if (products.length >= 100) break;
     }
 
-    return Response.json({ products, total: products.length, pricesFound: prices.length });
+    return Response.json({ products, total: products.length });
   } catch (e: any) {
     return Response.json({ error: e?.message || 'fetch failed', products: [] });
   }
