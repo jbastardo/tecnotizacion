@@ -20,7 +20,7 @@ export default function StoreImport({ onBack }: StoreImportProps) {
     setLoading(true);
     setSearched(true);
     try {
-      const res = await fetch(`/api/store-products?q=${encodeURIComponent(q)}`);
+      const res = await fetch(`/api/products?source=store&q=${encodeURIComponent(q)}`);
       const data = await res.json();
       setProducts(data.products || []);
     } catch { setProducts([]); }
