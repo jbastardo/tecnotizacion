@@ -125,7 +125,6 @@ export default function ProductList({ onBack }: ProductListProps) {
       </div>
 
       {importing && <p className="text-sm text-purple-600 mb-3">Importando productos...</p>}
-      {importingStore && <p className="text-sm text-orange-600 mb-3">Importando de Tu Tecno Tienda...</p>}
 
       {products.length === 0 ? (
         <p className="text-center text-gray-500 py-8">No hay productos</p>
