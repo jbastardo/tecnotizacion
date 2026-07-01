@@ -136,56 +136,59 @@ async function handleStoreSearch(params: URLSearchParams) {
     const res = await fetch('https://tutecnotienda.com/productos', {
       headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Tecnotizacion/1.0)' },
     });
-    if (!res.ok) return NextResponse.json({ error: 'Store unreachable' }, { status: 502 });
+    if (!res.ok) return NextResponse.json({ error: 'Store returned ' + res.status }, { status: 502 });
 
     const html = await res.text();
-    const start = html.indexOf('<h1>Productos</h1>');
+    const start = html.indexOf('Productos</h1>');
     const end = html.indexOf('<nav', start > 0 ? start : 0);
     const grid = start > 0 && end > start ? html.substring(start, end) : html;
 
     const products: any[] = [];
     const seen = new Set<string>();
 
-    const linkRegex = /<a\s+href="(\/p\/[^"]+)"[^>]*>\s*([^<]{5,})/g;
-    const allLinks: { href: string; text: string }[] = [];
+    // Match: <a href="/p/slug...">any text here</a>
+    const linkRegex = /<a\s[^>]*href="(\/p\/[^"]+)"[^>]*>([^<]+)</gi;
     let m;
+    const links: { href: string; text: string }[] = [];
     while ((m = linkRegex.exec(grid)) !== null) {
-      allLinks.push({ href: m[1], text: m[2].trim() });
+      const text = m[2]?.trim();
+      if (text && text.length > 3) links.push({ href: m[1], text });
     }
 
-    const priceRegex = /US\$\s*([\d,.]+)/g;
-    const allPrices: number[] = [];
+    const priceRegex = /US\$\s*([\d,.]+)/gi;
+    const prices: number[] = [];
     while ((m = priceRegex.exec(grid)) !== null) {
-      allPrices.push(parseFloat(m[1].replace(/,/g, '')));
+      prices.push(parseFloat(m[1].replace(/,/g, '')));
     }
 
-    const imgRegex = /<img\s+[^>]*src="([^"]*active_storage[^"]*)"[^>]*>/g;
-    const allImages: string[] = [];
+    const imgRegex = /<img[^>]+src="([^"]*active_storage[^"]*)"[^>]*>/gi;
+    const images: string[] = [];
     while ((m = imgRegex.exec(grid)) !== null) {
-      allImages.push(m[1]);
+      images.push(m[1]);
     }
 
-    for (let i = 0; i < allLinks.length && i < allPrices.length; i++) {
-      const link = allLinks[i];
-      const price = allPrices[i];
-      if (!price || seen.has(link.href)) continue;
+    for (let i = 0; i < links.length && i < prices.length; i++) {
+      const link = links[i];
+      if (!prices[i] || seen.has(link.href)) continue;
       seen.add(link.href);
 
       const skuMatch = link.text.match(/\[([A-Z0-9][^\]]{2,})\]/);
       const sku = skuMatch ? skuMatch[1] : link.href.split('/').pop()?.split('-')[0]?.toUpperCase() || '';
       const name = link.text.replace(/^\[[^\]]+\]\s*/, '').trim();
-      const img = i < allImages.length ? allImages[i] : null;
+      const img = i < images.length ? images[i] : null;
 
-      if (query) {
-        if (!name.toLowerCase().includes(query) && !sku.toLowerCase().includes(query)) continue;
-      }
+      if (query && !name.toLowerCase().includes(query) && !sku.toLowerCase().includes(query)) continue;
 
-      products.push({ sku, name, costUsd: price, imageUrl: img, category: 'Importado' });
+      products.push({ sku, name, costUsd: prices[i], imageUrl: img, category: 'Importado' });
       if (query && products.length >= 30) break;
     }
 
-    return NextResponse.json({ products, total: products.length });
+    return NextResponse.json({
+      products,
+      total: products.length,
+      debug: { linksFound: links.length, pricesFound: prices.length, imagesFound: images.length, gridSize: grid.length },
+    });
   } catch (e: any) {
-    return NextResponse.json({ error: 'Store fetch failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Store fetch failed: ' + (e?.message || 'unknown'), products: [], total: 0 });
   }
 }
