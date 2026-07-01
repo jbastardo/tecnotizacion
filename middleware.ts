@@ -7,7 +7,7 @@ const PUBLIC = [
   '/api/auth',
   '/api/health',
   '/api/tasas',
-  '/api/icon',
+  '/api/store',
   '/api/producto-publico',
   '/producto',
   '/manifest.json',

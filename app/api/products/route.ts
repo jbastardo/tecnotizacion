@@ -16,15 +16,9 @@ function mapProduct(row: any) {
   };
 }
 
-export async function GET(request: Request) {
+export async function GET() {
   const session = await getSession();
   if (!session) return NextResponse.json({ error: 'No autorizado' }, { status: 401 });
-
-  const { searchParams } = new URL(request.url);
-  // Store search: proxy to tutecnotienda.com
-  if (searchParams.get('source') === 'store') {
-    return handleStoreSearch(searchParams);
-  }
 
   const tryQuery = async (sql: string) => {
     try { return await query(sql, [session.tenantId]); } catch { return null; }
@@ -127,68 +121,5 @@ export async function DELETE(request: Request) {
   } catch (error) {
     console.error('Error deleting product:', error);
     return NextResponse.json({ error: 'Failed to delete product' }, { status: 500 });
-  }
-}
-
-async function handleStoreSearch(params: URLSearchParams) {
-  const query = (params.get('q') || '').toLowerCase().trim();
-  try {
-    const res = await fetch('https://tutecnotienda.com/productos', {
-      headers: { 'User-Agent': 'Mozilla/5.0 (compatible; Tecnotizacion/1.0)' },
-    });
-    if (!res.ok) return NextResponse.json({ error: 'Store returned ' + res.status }, { status: 502 });
-
-    const html = await res.text();
-    const start = html.indexOf('Productos</h1>');
-    const end = html.indexOf('<nav', start > 0 ? start : 0);
-    const grid = start > 0 && end > start ? html.substring(start, end) : html;
-
-    const products: any[] = [];
-    const seen = new Set<string>();
-
-    // Match: <a href="/p/slug...">any text here</a>
-    const linkRegex = /<a\s[^>]*href="(\/p\/[^"]+)"[^>]*>([^<]+)</gi;
-    let m;
-    const links: { href: string; text: string }[] = [];
-    while ((m = linkRegex.exec(grid)) !== null) {
-      const text = m[2]?.trim();
-      if (text && text.length > 3) links.push({ href: m[1], text });
-    }
-
-    const priceRegex = /US\$\s*([\d,.]+)/gi;
-    const prices: number[] = [];
-    while ((m = priceRegex.exec(grid)) !== null) {
-      prices.push(parseFloat(m[1].replace(/,/g, '')));
-    }
-
-    const imgRegex = /<img[^>]+src="([^"]*active_storage[^"]*)"[^>]*>/gi;
-    const images: string[] = [];
-    while ((m = imgRegex.exec(grid)) !== null) {
-      images.push(m[1]);
-    }
-
-    for (let i = 0; i < links.length && i < prices.length; i++) {
-      const link = links[i];
-      if (!prices[i] || seen.has(link.href)) continue;
-      seen.add(link.href);
-
-      const skuMatch = link.text.match(/\[([A-Z0-9][^\]]{2,})\]/);
-      const sku = skuMatch ? skuMatch[1] : link.href.split('/').pop()?.split('-')[0]?.toUpperCase() || '';
-      const name = link.text.replace(/^\[[^\]]+\]\s*/, '').trim();
-      const img = i < images.length ? images[i] : null;
-
-      if (query && !name.toLowerCase().includes(query) && !sku.toLowerCase().includes(query)) continue;
-
-      products.push({ sku, name, costUsd: prices[i], imageUrl: img, category: 'Importado' });
-      if (query && products.length >= 30) break;
-    }
-
-    return NextResponse.json({
-      products,
-      total: products.length,
-      debug: { linksFound: links.length, pricesFound: prices.length, imagesFound: images.length, gridSize: grid.length },
-    });
-  } catch (e: any) {
-    return NextResponse.json({ error: 'Store fetch failed: ' + (e?.message || 'unknown'), products: [], total: 0 });
   }
 }

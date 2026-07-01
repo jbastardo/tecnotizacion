@@ -14,16 +14,26 @@ export default function StoreImport({ onBack }: StoreImportProps) {
   const [searched, setSearched] = useState(false);
   const [importingId, setImportingId] = useState<string | null>(null);
 
+  const [allProducts, setAllProducts] = useState<any[]>([]);
+  const [loaded, setLoaded] = useState(false);
+
+  const filtered = query && query.length >= 2
+    ? allProducts.filter((p: any) =>
+        p.name.toLowerCase().includes(query.toLowerCase()) ||
+        (p.sku || '').toLowerCase().includes(query.toLowerCase())
+      )
+    : [];
+
   const searchStore = async () => {
-    const q = query.trim();
-    if (!q || q.length < 2) return;
+    if (loaded) return; // Already loaded full catalog
     setLoading(true);
     setSearched(true);
     try {
-      const res = await fetch(`/api/products?source=store&q=${encodeURIComponent(q)}`);
+      const res = await fetch('/api/store');
       const data = await res.json();
-      setProducts(data.products || []);
-    } catch { setProducts([]); }
+      setAllProducts(data.products || []);
+      setLoaded(true);
+    } catch { alert('Error al conectar con la tienda'); }
     finally { setLoading(false); }
   };
 
@@ -40,7 +50,7 @@ export default function StoreImport({ onBack }: StoreImportProps) {
         }),
       });
       if (res.ok) {
-        setProducts(products.map((p: any) =>
+        setAllProducts(allProducts.map((p: any) =>
           p.sku === product.sku ? { ...p, imported: true } : p
         ));
       }
@@ -63,23 +73,23 @@ export default function StoreImport({ onBack }: StoreImportProps) {
           onKeyDown={(e) => e.key === 'Enter' && searchStore()}
           placeholder="Buscar: hikvision, ubiquiti, mikrotik..."
           className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-orange-500 focus:border-transparent" />
-        <button onClick={searchStore} disabled={loading || query.length < 2}
+        <button onClick={searchStore} disabled={loading}
           className="bg-orange-600 text-white px-4 py-3 rounded-lg font-semibold hover:bg-orange-700 disabled:bg-gray-300 flex items-center gap-2">
           {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Search className="w-5 h-5" />}
         </button>
       </div>
 
-      {loading && <p className="text-center text-gray-500 py-4">Buscando productos...</p>}
+      {loading && <p className="text-center text-gray-500 py-4">Cargando catálogo...</p>}
 
-      {!loading && searched && products.length === 0 && (
+      {!loading && loaded && filtered.length === 0 && query.length >= 2 && (
         <p className="text-center text-gray-500 py-8">
-          No se encontraron productos para "{query}" en Tu Tecno Tienda
+          No se encontraron productos para "{query}"
         </p>
       )}
 
-      {products.length > 0 && (
+      {filtered.length > 0 && (
         <div className="space-y-3">
-          {products.map((p: any) => (
+          {filtered.map((p: any) => (
             <div key={p.sku} className="border border-gray-200 rounded-lg p-4 flex gap-3">
               {p.imageUrl ? (
                 <img src={p.imageUrl} alt={p.name} className="w-16 h-16 rounded-lg object-cover flex-shrink-0" />
