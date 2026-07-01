@@ -14,6 +14,8 @@ export default function ProductList({ onBack }: ProductListProps) {
   const [editForm, setEditForm] = useState<any>({});
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [importing, setImporting] = useState(false);
+  const [importingStore, setImportingStore] = useState(false);
+  const [storeCount, setStoreCount] = useState(0);
 
   useEffect(() => { fetchProducts(); }, []);
 
@@ -93,6 +95,28 @@ export default function ProductList({ onBack }: ProductListProps) {
     e.target.value = '';
   };
 
+  const handleImportStore = async () => {
+    setImportingStore(true);
+    try {
+      const res = await fetch('/api/store-products');
+      const data = await res.json();
+      const prods = data.products || [];
+      for (const p of prods) {
+        await fetch('/api/products', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            sku: p.sku, name: p.name, costUsd: p.costUsd,
+            category: p.category, imageUrl: p.imageUrl, profitMargin: 45,
+          }),
+        });
+      }
+      fetchProducts();
+      alert(`¡${prods.length} productos importados de Tu Tecno Tienda!`);
+    } catch { alert('Error al importar'); }
+    finally { setImportingStore(false); }
+  };
+
   const handleShareProduct = (p: any) => {
     const pageUrl = `${window.location.origin}/producto?id=${p.id}`;
     const message = `*${p.name}*\n💰 $${(p.costUsd / (1 - (p.profitMargin || 45) / 100)).toFixed(2)} USD\n\n${p.description || ''}\n\nInfo: ${pageUrl}`;
@@ -111,6 +135,11 @@ export default function ProductList({ onBack }: ProductListProps) {
           <h2 className="text-xl font-bold text-gray-800">Mis Productos</h2>
         </div>
         <div className="flex gap-2">
+          <button onClick={handleImportStore}
+            className="bg-orange-600 text-white p-2 rounded-lg hover:bg-orange-700 transition-colors text-xs"
+            title="Importar de TuTecnoTienda">
+            🏪
+          </button>
           <button onClick={handleExport}
             className="bg-green-600 text-white p-2 rounded-lg hover:bg-green-700 transition-colors"
             title="Exportar Excel">
@@ -125,6 +154,7 @@ export default function ProductList({ onBack }: ProductListProps) {
       </div>
 
       {importing && <p className="text-sm text-purple-600 mb-3">Importando productos...</p>}
+      {importingStore && <p className="text-sm text-orange-600 mb-3">Importando de Tu Tecno Tienda...</p>}
 
       {products.length === 0 ? (
         <p className="text-center text-gray-500 py-8">No hay productos</p>
