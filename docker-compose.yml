@@ -27,9 +27,9 @@ services:
     image: postgres:16-alpine
     container_name: tecnotizacion-db
     environment:
-      - POSTGRES_USER=${POSTGRES_USER:-tecnotizacion}
-      - POSTGRES_PASSWORD=${POST...n}
-      - POSTGRES_DB=${POSTGRES_DB:-tecnotizacion}
+      POSTGRES_USER: tecnotizacion
+      POSTGRES_PASSWORD: "Tecno***n"
+      POSTGRES_DB: tecnotizacion
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./lib/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
