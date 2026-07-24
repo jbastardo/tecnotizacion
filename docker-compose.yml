@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: tecnotizacion-app
+    ports:
+      - "3000:3000"
+    environment:
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    networks:
+      - coolify
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: tecnotizacion-db
+    environment:
+      - POSTGRES_USER=${POSTGRES_USER:-tecnotizacion}
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-tecnotizacion}
+      - POSTGRES_DB=${POSTGRES_DB:-tecnotizacion}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./lib/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tecnotizacion}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    networks:
+      - coolify
+
+volumes:
+  postgres_data:
+
+networks:
+  coolify:
+    external: true

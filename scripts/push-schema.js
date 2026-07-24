@@ -2,7 +2,7 @@ const { Pool } = require('pg');
 const fs = require('fs');
 const path = require('path');
 
-// Try .env.local first, fall back to process.env (Railway)
+// Try .env.local first, fall back to process.env (Coolify/Railway)
 try { require('dotenv').config({ path: '.env.local' }); } catch {}
 
 async function pushSchema() {
@@ -11,9 +11,21 @@ async function pushSchema() {
     process.exit(1);
   }
 
+  // Detect if we're connecting to a local/internal database
+  const databaseUrl = process.env.DATABASE_URL;
+  const isLocalDB = databaseUrl && (
+    databaseUrl.includes('localhost') ||
+    databaseUrl.includes('127.0.0.1') ||
+    databaseUrl.includes('postgres:') ||
+    databaseUrl.includes('.coolify') ||
+    databaseUrl.includes('coolify')
+  );
+
+  const sslConfig = isLocalDB ? false : { rejectUnauthorized: false };
+
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false },
+    ssl: sslConfig,
   });
 
   const schemaPath = path.join(__dirname, '..', 'lib', 'schema.sql');
