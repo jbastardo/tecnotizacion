@@ -13,12 +13,16 @@ export async function GET() {
     }, { status: 500 });
   }
 
+  // SSL configuration: controlled by DATABASE_SSL environment variable
+  const shouldUseSSL = process.env.DATABASE_SSL !== 'false';
+  const sslConfig = shouldUseSSL ? {
+    rejectUnauthorized: false,
+  } : false;
+
   try {
     const pool = new Pool({
       connectionString: databaseUrl,
-      ssl: {
-        rejectUnauthorized: false
-      }
+      ssl: sslConfig,
     });
 
     // Probar conexión
