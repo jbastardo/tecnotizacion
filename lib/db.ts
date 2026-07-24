@@ -6,19 +6,13 @@ if (!databaseUrl) {
   console.warn('DATABASE_URL is not defined - database operations will fail');
 }
 
-// Detect if we're connecting to a local/internal database (Coolify) vs external (Railway)
-const isLocalDB = databaseUrl && (
-  databaseUrl.includes('localhost') ||
-  databaseUrl.includes('127.0.0.1') ||
-  databaseUrl.includes('postgres:') ||
-  databaseUrl.includes('.coolify') ||
-  databaseUrl.includes('coolify')
-);
-
-// SSL configuration: only enable for external databases
-const sslConfig = isLocalDB ? false : {
+// SSL configuration: controlled by DATABASE_SSL environment variable
+// Set DATABASE_SSL=false for Coolify (internal PostgreSQL without SSL)
+// Set DATABASE_SSL=true for external databases (Railway, etc.)
+const shouldUseSSL = process.env.DATABASE_SSL !== 'false';
+const sslConfig = shouldUseSSL ? {
   rejectUnauthorized: false,
-};
+} : false;
 
 export const pool = databaseUrl
   ? new Pool({
