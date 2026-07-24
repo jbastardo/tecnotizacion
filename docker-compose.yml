@@ -34,7 +34,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./lib/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tecnotizacion} -d ${POSTGRES_DB:-tecnotizacion}"]
+      test: ["CMD-SHELL", "pg_isready -U tecnotizacion -d tecnotizacion"]
       interval: 10s
       timeout: 5s
       retries: 5
