@@ -6,6 +6,7 @@ const PUBLIC = [
   '/login',
   '/api/auth',
   '/api/health',
+  '/api/db-diagnostic',
   '/api/tasas',
   '/api/store',
   '/api/producto-publico',
