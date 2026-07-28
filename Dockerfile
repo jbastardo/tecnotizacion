@@ -1,24 +1,18 @@
-FROM node:20-alpine AS base
+FROM node:20-slim AS base
 
 # Install dependencies (including devDependencies for build)
 FROM base AS deps
-RUN apk add --no-cache libc6-compat
-WORKDIR /app
-
-# Copy package files
-COPY package.json package-lock.json* ./
-# Coolify inyecta NODE_ENV=production como build-arg. Con prod, npm 10.x falla
-# silenciosamente al descargar binarios nativos de @next/swc-* (timeout 72s).
-# ENV sobrescribe el ARG de Coolify; fetch-timeout extendido a 10 min para
-# binarios grandes (swc, sharp) en servidores con red lenta.
+# libc6-compat no es necesario en Debian (glibc ya disponible).
+# NODE_ENV=development: Coolify inyecta NODE_ENV=production como build-arg en
+# todos los stages; con prod, npm 10.x falla al descargar binarios @next/swc-*.
 ENV NODE_ENV=development
-RUN npm config set fetch-timeout 600000 && \
-    npm config set fetch-retry-maxtimeout 600000 && \
-    npm install --include=dev
+WORKDIR /app
+COPY package.json package-lock.json* ./
+RUN npm install --include=dev
 
 # Patch de Next.js 15.x: el componente Html del Pages Router lanza un error
 # durante la generación estática del /404 en apps App Router porque el
-# HtmlContext no está inicializado. Se aplica en el stage donde están
+# HtmlContext no está inicializado. Se aplica aquí (stage deps) donde están
 # los node_modules, antes del build.
 RUN node -e "\
   const fs = require('fs');\
@@ -59,8 +53,8 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# next build con NODE_ENV=production (correcto para el runtime de Next.js)
-# Las devDeps ya están instaladas en el stage deps con --include=dev
+# next build con NODE_ENV=production (correcto para el runtime de Next.js).
+# Las devDeps ya están instaladas en el stage deps.
 RUN npm run build
 
 # Production image
