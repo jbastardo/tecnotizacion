@@ -29,9 +29,11 @@ export async function POST(request: Request) {
 
   try {
     for (const row of rows) {
+      const JSONB_COLS = new Set(['items_data', 'rates_data']);
       const vals = cols.map(c => {
         const v = row[c];
-        if (v === '' || v === undefined) return null;
+        if (v === '' || v === undefined || v === null) return null;
+        if (JSONB_COLS.has(c) && typeof v === 'object') return JSON.stringify(v);
         return v;
       });
       const placeholders = cols.map((_, i) => `$${i + 1}`).join(', ');
