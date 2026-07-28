@@ -7,8 +7,10 @@ WORKDIR /app
 
 # Copy package files
 COPY package.json package-lock.json* ./
-# --include=dev garantiza devDependencies independientemente de NODE_ENV
-RUN npm ci --include=dev
+# npm install en vez de npm ci: el lockfile generado en Replit puede estar
+# incompleto por restricciones de CVE del entorno de desarrollo. npm install
+# resuelve paquetes faltantes (ej. @emnapi/*) en el servidor de build.
+RUN npm install --include=dev
 
 # Patch de Next.js 15.x: el componente Html del Pages Router lanza un error
 # durante la generación estática del /404 en apps App Router porque el
