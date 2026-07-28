@@ -4,12 +4,10 @@ import { cookies } from 'next/headers';
 import crypto from 'crypto';
 
 function hashPassword(password: string): string {
-  // NOTA: AUTH_SECRET no estaba definida en Railway, por lo que el hash histórico
-  // es sha256(password + "undefined"). Para mantener compatibilidad con usuarios
-  // existentes, replicamos ese comportamiento usando String() en lugar de || fallback.
-  const secret = process.env.AUTH_SECRET !== undefined
-    ? process.env.AUTH_SECRET
-    : 'undefined'; // compatibilidad con hashes generados antes de setear AUTH_SECRET
+  // Railway nunca tuvo AUTH_SECRET definida → hash histórico es sha256(password + "undefined").
+  // Docker-compose pasa AUTH_SECRET="" (string vacío) cuando no está configurada en Coolify,
+  // por eso usamos || en lugar de !== undefined para tratar "" igual que undefined.
+  const secret = process.env.AUTH_SECRET || 'undefined';
   return crypto.createHash('sha256').update(password + secret).digest('hex');
 }
 
