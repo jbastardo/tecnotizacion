@@ -8,9 +8,11 @@ FROM base AS deps
 ENV NODE_ENV=development
 WORKDIR /app
 COPY package.json package-lock.json* ./
-# package-lock.json debe tener URLs de registry.npmjs.org (no package-firewall.replit.local).
-# Si fue generado en Replit, hacer: sed -i 's|http://package-firewall.replit.local/npm/|https://registry.npmjs.org/|g' package-lock.json
-RUN npm ci --include=dev
+# npm install en vez de npm ci: el lockfile generado en Replit carece de
+# @emnapi/runtime y @emnapi/core (bloqueados por Replit Security Policy).
+# npm install resuelve los paquetes faltantes sin requerir lockfile perfecto.
+# Las URLs del lockfile ya apuntan a registry.npmjs.org (no package-firewall.replit.local).
+RUN npm install --include=dev
 
 # Patch de Next.js 15.x: el componente Html del Pages Router lanza un error
 # durante la generación estática del /404 en apps App Router porque el
