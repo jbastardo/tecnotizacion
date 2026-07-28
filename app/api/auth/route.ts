@@ -4,7 +4,13 @@ import { cookies } from 'next/headers';
 import crypto from 'crypto';
 
 function hashPassword(password: string): string {
-  return crypto.createHash('sha256').update(password + process.env.AUTH_SECRET || 'tecno2024').digest('hex');
+  // NOTA: AUTH_SECRET no estaba definida en Railway, por lo que el hash histórico
+  // es sha256(password + "undefined"). Para mantener compatibilidad con usuarios
+  // existentes, replicamos ese comportamiento usando String() en lugar de || fallback.
+  const secret = process.env.AUTH_SECRET !== undefined
+    ? process.env.AUTH_SECRET
+    : 'undefined'; // compatibilidad con hashes generados antes de setear AUTH_SECRET
+  return crypto.createHash('sha256').update(password + secret).digest('hex');
 }
 
 export async function POST(request: Request) {
