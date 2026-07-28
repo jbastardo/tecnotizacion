@@ -1,1 +1,4 @@
 - [Juan Carlos — User preferences](juan-carlos-prefs.md) — Senior técnico 28 años exp., responder siempre en español, trato de par técnico, sin explicaciones básicas.
+- [Coolify deploy — tecnotizaR](coolify-deploy-tecnotizar.md) — Infraestructura, env vars, y lecciones del deploy en Coolify con Cloudflare Tunnel.
+- [package-lock.json en Replit](replit-lockfile-issue.md) — Lockfile generado en Replit tiene URLs package-firewall.replit.local que rompen npm ci fuera de Replit.
+- [Next.js 15 Html/HtmlContext bug](nextjs15-html-context-bug.md) — Bug de prerender /404 en App Router; solución: patch quirúrgico en node_modules/next/dist.
