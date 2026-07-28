@@ -15,8 +15,8 @@ replit.nix
 .agents
 *.log
 
-# Frontend (no se incluye en el build del API)
-artifacts/mockup-sandbox
+# Scaffold Replit — no forman parte de la app Next.js
+artifacts/
 
 # Archivos de entorno reales
 .env
