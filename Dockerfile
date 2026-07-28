@@ -7,9 +7,10 @@ WORKDIR /app
 
 # Copy package files
 COPY package.json package-lock.json* ./
-# npm install en vez de npm ci: el lockfile generado en Replit puede estar
-# incompleto por restricciones de CVE del entorno de desarrollo. npm install
-# resuelve paquetes faltantes (ej. @emnapi/*) en el servidor de build.
+# Coolify inyecta NODE_ENV=production como build-arg en todos los stages.
+# Con NODE_ENV=production, npm 10.x falla silenciosamente ("Exit handler never called").
+# ENV aquí sobrescribe el ARG de Coolify solo para este stage.
+ENV NODE_ENV=development
 RUN npm install --include=dev
 
 # Patch de Next.js 15.x: el componente Html del Pages Router lanza un error
