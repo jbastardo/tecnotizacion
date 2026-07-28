@@ -7,11 +7,14 @@ WORKDIR /app
 
 # Copy package files
 COPY package.json package-lock.json* ./
-# Coolify inyecta NODE_ENV=production como build-arg en todos los stages.
-# Con NODE_ENV=production, npm 10.x falla silenciosamente ("Exit handler never called").
-# ENV aquí sobrescribe el ARG de Coolify solo para este stage.
+# Coolify inyecta NODE_ENV=production como build-arg. Con prod, npm 10.x falla
+# silenciosamente al descargar binarios nativos de @next/swc-* (timeout 72s).
+# ENV sobrescribe el ARG de Coolify; fetch-timeout extendido a 10 min para
+# binarios grandes (swc, sharp) en servidores con red lenta.
 ENV NODE_ENV=development
-RUN npm install --include=dev
+RUN npm config set fetch-timeout 600000 && \
+    npm config set fetch-retry-maxtimeout 600000 && \
+    npm install --include=dev
 
 # Patch de Next.js 15.x: el componente Html del Pages Router lanza un error
 # durante la generación estática del /404 en apps App Router porque el
