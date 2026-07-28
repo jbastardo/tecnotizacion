@@ -1,42 +1,45 @@
+version: '3.8'
+
 services:
-  api:
+  app:
     build:
       context: .
       dockerfile: Dockerfile
+    container_name: tecnotizacion-app
     ports:
-      - "${PORT:-3000}:3000"
+      - "3000:3000"
     environment:
-      NODE_ENV: production
-      PORT: "3000"
-      DATABASE_URL: ${DATABASE_URL}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
+      - NODE_ENV=production
+      - DATABASE_URL=${DATABASE_URL}
+      - NEXT_PUBLIC_APP_URL=${NEXT_PUBLIC_APP_URL:-http://localhost:3000}
     depends_on:
       postgres:
         condition: service_healthy
     restart: unless-stopped
-    networks:
-      - tecnotizar_net
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3000/api/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
 
   postgres:
     image: postgres:16-alpine
+    container_name: tecnotizacion-db
     environment:
-      POSTGRES_DB: ${POSTGRES_DB:-tecnotizar}
-      POSTGRES_USER: ${POSTGRES_USER:-tecnotizar}
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_USER: tecnotizacion
+      POSTGRES_PASSWORD: "Tecno***n"
+      POSTGRES_DB: tecnotizacion
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./lib/schema.sql:/docker-entrypoint-initdb.d/init.sql:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-tecnotizar} -d ${POSTGRES_DB:-tecnotizar}"]
+      test: ["CMD-SHELL", "pg_isready -U tecnotizacion -d tecnotizacion"]
       interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 10s
     restart: unless-stopped
-    networks:
-      - tecnotizar_net
 
 volumes:
   postgres_data:
-
-networks:
-  tecnotizar_net:
-    driver: bridge

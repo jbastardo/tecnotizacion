@@ -1,45 +1,48 @@
-# ── Stage 1: Builder ────────────────────────────────────────────────────────
-# IMPORTANTE: Usar imagen glibc (bookworm), NO alpine/musl.
-# pnpm-workspace.yaml excluye los binarios musl de esbuild/lightningcss/rollup.
-FROM node:20-bookworm-slim AS builder
+FROM node:20-alpine AS base
+
+# Install dependencies (including devDependencies for build)
+FROM base AS deps
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Habilitar pnpm con la misma versión que el workspace
-RUN corepack enable && corepack prepare pnpm@10.26.1 --activate
+# Copy package files
+COPY package.json package-lock.json* ./
+RUN npm ci --include=dev
 
-# Copiar manifests del workspace primero (cache layer)
-COPY package.json pnpm-workspace.yaml pnpm-lock.yaml ./
-COPY tsconfig.base.json tsconfig.json ./
+# Rebuild the source code only when needed
+FROM base AS builder
+WORKDIR /app
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
 
-# Copiar package.json de cada paquete del workspace
-COPY lib/db/package.json            lib/db/
-COPY lib/api-zod/package.json       lib/api-zod/
-COPY lib/api-spec/package.json      lib/api-spec/
-COPY lib/api-client-react/package.json lib/api-client-react/
-COPY artifacts/api-server/package.json artifacts/api-server/
-COPY scripts/package.json           scripts/
+# Build Next.js
+RUN npm run build
 
-# Instalar dependencias (lockfile congelado = build reproducible)
-RUN pnpm install --frozen-lockfile
-
-# Copiar el resto del código fuente
-COPY lib/                  lib/
-COPY artifacts/api-server/ artifacts/api-server/
-
-# Compilar el bundle de producción con esbuild
-RUN pnpm --filter @workspace/api-server run build
-
-# ── Stage 2: Runner ─────────────────────────────────────────────────────────
-# esbuild bundlea todo en dist/ — no se necesitan node_modules en producción
-FROM node:20-bookworm-slim AS runner
+# Production image
+FROM base AS runner
 WORKDIR /app
 
-ENV NODE_ENV=production
-ENV PORT=3000
+ENV NODE_ENV production
 
-# Solo se copia el bundle compilado
-COPY --from=builder /app/artifacts/api-server/dist ./dist
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/lib/schema.sql ./lib/schema.sql
+
+# Set the correct permission for prerender cache
+RUN mkdir .next
+RUN chown nextjs:nodejs .next
+
+# Automatically leverage output traces to reduce image size
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+USER nextjs
 
 EXPOSE 3000
 
-CMD ["node", "--enable-source-maps", "./dist/index.mjs"]
+ENV PORT 3000
+ENV HOSTNAME "0.0.0.0"
+
+CMD ["node", "server.js"]
