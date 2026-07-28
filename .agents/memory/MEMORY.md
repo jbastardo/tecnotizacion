@@ -1,0 +1,1 @@
+- [Juan Carlos — User preferences](juan-carlos-prefs.md) — Senior técnico 28 años exp., responder siempre en español, trato de par técnico, sin explicaciones básicas.

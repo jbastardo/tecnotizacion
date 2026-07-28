@@ -34,7 +34,10 @@ _Describe the high-level user-facing capabilities of this app once they exist._
 
 ## User preferences
 
-_Populate as you build — explicit user instructions worth remembering across sessions._
+- **Juan Carlos** — 46 años, 28 años de experiencia técnica.
+- Responder siempre en **español**.
+- Trato de **par técnico senior** — sin explicaciones básicas ni condescendientes.
+- Respuestas directas y al grano.
 
 ## Gotchas
 
