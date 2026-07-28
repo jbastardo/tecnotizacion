@@ -9,6 +9,7 @@ const PUBLIC = [
   '/api/db-diagnostic',
   '/api/db-test',
   '/api/tasas',
+  '/api/admin/migrate',
   '/api/store',
   '/api/producto-publico',
   '/producto',
