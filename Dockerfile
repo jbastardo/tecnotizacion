@@ -8,10 +8,9 @@ FROM base AS deps
 ENV NODE_ENV=development
 WORKDIR /app
 COPY package.json package-lock.json* ./
-# npm 10.8.2 (incluido en node:20-slim) falla con "Exit handler never called!"
-# a los 72s exactos al descargar paquetes pesados de Next.js 15. Es un bug
-# conocido de npm 10.x con timeouts de red. npm 12 lo resuelve.
-RUN npm install -g npm@11 && npm install --include=dev
+# package-lock.json debe tener URLs de registry.npmjs.org (no package-firewall.replit.local).
+# Si fue generado en Replit, hacer: sed -i 's|http://package-firewall.replit.local/npm/|https://registry.npmjs.org/|g' package-lock.json
+RUN npm ci --include=dev
 
 # Patch de Next.js 15.x: el componente Html del Pages Router lanza un error
 # durante la generación estática del /404 en apps App Router porque el
