@@ -15,7 +15,9 @@ WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
 COPY . .
 
-# Build Next.js
+# Forzar development para que Next.js tenga acceso a devDependencies
+# Coolify inyecta NODE_ENV=production como build-arg en todos los stages
+ENV NODE_ENV=development
 RUN npm run build
 
 # Production image
