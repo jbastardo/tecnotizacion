@@ -17,6 +17,10 @@ replit.nix
 
 # Scaffold Replit — no forman parte de la app Next.js
 artifacts/
+lib/api-client-react/
+lib/api-zod/
+lib/api-spec/
+lib/db/
 
 # Archivos de entorno reales
 .env

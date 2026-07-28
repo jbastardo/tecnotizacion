@@ -37,6 +37,10 @@
   ],
   "exclude": [
     "node_modules",
-    "artifacts"
+    "artifacts",
+    "lib/api-client-react",
+    "lib/api-zod",
+    "lib/api-spec",
+    "lib/db"
   ]
 }
