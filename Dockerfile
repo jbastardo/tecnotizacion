@@ -8,7 +8,10 @@ FROM base AS deps
 ENV NODE_ENV=development
 WORKDIR /app
 COPY package.json package-lock.json* ./
-RUN npm install --include=dev
+# --ignore-scripts: el postinstall de @next/swc-linux-x64-* falla en npm 10.8.2
+# con "Exit handler never called!" a los 72 segundos exactos en cualquier imagen.
+# Next.js tiene fallback a Babel si SWC no está disponible.
+RUN npm install --include=dev --ignore-scripts
 
 # Patch de Next.js 15.x: el componente Html del Pages Router lanza un error
 # durante la generación estática del /404 en apps App Router porque el
