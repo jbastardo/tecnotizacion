@@ -1,5 +1,8 @@
 'use client';
 
+// force-dynamic: evita el prerender estático — la página usa window.location en useEffect
+export const dynamic = 'force-dynamic';
+
 import { useState, useEffect } from 'react';
 import { Loader2 } from 'lucide-react';
 

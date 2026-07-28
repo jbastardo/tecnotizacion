@@ -1,3 +1,7 @@
+// force-dynamic evita que Next.js intente pre-renderizar esta página
+// (workaround para bug en Next.js 15.5.x con chunk 611 / <Html> de Pages Router)
+export const dynamic = 'force-dynamic';
+
 export default function NotFound() {
   return (
     <div className="min-h-screen bg-gray-50 flex items-center justify-center p-4">
